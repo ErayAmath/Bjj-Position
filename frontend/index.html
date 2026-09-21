@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BJJ Positions</title>
+  <meta name="description" content="Recognising Brazilian Jiu-Jitsu positions from pose keypoints — a learning project and lab notebook.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0b0d'/%3E%3Crect y='12' width='32' height='8' fill='%23000'/%3E%3Crect x='18' y='12' width='10' height='8' fill='%23c8302b'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="#top">BJJ<span>/</span>Positions</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#explorer">Positions</a>
+      <a href="#data">Data</a>
+      <a href="#roadmap">Roadmap</a>
+    </nav>
+    <div class="belt" role="img" aria-label="Progress: milestone 1 of 4 in progress">
+      <span class="belt__bar">
+        <i class="stripe is-active"></i><i class="stripe"></i><i class="stripe"></i><i class="stripe"></i>
+      </span>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero__copy">
+        <p class="eyebrow">White belt · ML lab notebook · 001</p>
+        <h1 class="hero__title">Read<br>the roll.</h1>
+        <p class="hero__lede">
+          A model that recognises Brazilian Jiu-Jitsu positions from two skeletons —
+          and, eventually, tells me where I actually spend my rounds.
+        </p>
+        <dl class="hero__meta">
+          <div><dt>Input</dt><dd>2 × 17 keypoints</dd></div>
+          <div><dt>Output</dt><dd>18 positions</dd></div>
+          <div><dt>Status</dt><dd>Milestone 1</dd></div>
+        </dl>
+      </div>
+      <figure class="stage stage--hero">
+        <canvas id="hero-canvas" aria-label="Animated skeletons of two athletes from the dataset"></canvas>
+        <figcaption class="stage__caption">
+          <span class="stage__label" id="hero-label">—</span>
+          <span class="stage__meta mono" id="hero-meta"></span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="facts" aria-label="Dataset at a glance">
+      <div class="fact"><span class="fact__value mono" id="fact-frames">—</span><span class="fact__label">labelled frames</span></div>
+      <div class="fact"><span class="fact__value mono" id="fact-classes">—</span><span class="fact__label">position classes</span></div>
+      <div class="fact"><span class="fact__value mono" id="fact-sequences">—</span><span class="fact__label" id="fact-sequences-label">sparring sequences</span></div>
+      <div class="fact"><span class="fact__value mono" id="fact-missing">—</span><span class="fact__label">frames with one athlete lost</span></div>
+    </section>
+
+    <section class="section" id="explorer">
+      <header class="section__head">
+        <p class="eyebrow">01 — Positions</p>
+        <h2>What the model sees</h2>
+        <p class="section__lede">No pixels, no gi colours — only joints. Every clip below is a real
+          64-frame stretch from the dataset. Pick a position.</p>
+      </header>
+
+      <div class="explorer">
+        <ol class="position-list" id="position-list" aria-label="Positions"></ol>
+
+        <div class="explorer__main">
+          <figure class="stage stage--large">
+            <canvas id="explorer-canvas" aria-label="Skeleton animation of the selected position"></canvas>
+            <figcaption class="stage__caption">
+              <span class="stage__label" id="explorer-label">—</span>
+              <span class="stage__meta mono" id="explorer-meta"></span>
+            </figcaption>
+          </figure>
+
+          <div class="controls">
+            <button class="btn" id="play-toggle" type="button" aria-pressed="true">Pause</button>
+            <input class="scrub" id="scrub" type="range" min="0" max="63" value="0" aria-label="Frame">
+            <span class="mono controls__frame" id="frame-counter">00 / 64</span>
+          </div>
+
+          <div class="explainer">
+            <p class="explainer__text" id="explorer-desc"></p>
+            <ul class="legend" aria-label="Legend">
+              <li><i class="swatch swatch--a1"></i>Athlete 1</li>
+              <li><i class="swatch swatch--a2"></i>Athlete 2</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="data">
+      <header class="section__head">
+        <p class="eyebrow">02 — Data</p>
+        <h2>Where the frames are</h2>
+        <p class="section__lede">Most positions come in two flavours: the number says which athlete
+          the dataset attributes the position to. Standing and 50/50 are symmetric.</p>
+      </header>
+
+      <div class="panel">
+        <div class="panel__head">
+          <h3>Frames per position</h3>
+          <ul class="legend" aria-label="Legend">
+            <li><i class="swatch swatch--a1"></i>Athlete 1</li>
+            <li><i class="swatch swatch--a2"></i>Athlete 2</li>
+            <li><i class="swatch swatch--sym"></i>Symmetric</li>
+          </ul>
+        </div>
+        <div class="bars" id="bars" role="table" aria-label="Frames per position"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <h3>Position mix per recording segment</h3>
+          <p class="panel__note">Share of each segment's frames. Stronger red = more.</p>
+        </div>
+        <div class="heatmap-wrap">
+          <div class="heatmap" id="heatmap" role="table" aria-label="Share of frames per position and segment"></div>
+        </div>
+        <aside class="callout">
+          <span class="callout__tag mono">Open problem</span>
+          <p>The frame counter restarts 15 times, giving 16 segments — camera views of
+            <strong>6 sparring sequences</strong>, recovered from their near-identical position mix.
+            Splitting by segment would leak the same moment seen from another angle. But splitting
+            by sequence has its own catch: <strong>each sequence drilled only a few positions</strong>
+            (back exists only in sequence 6), so whole classes would vanish from training.
+            Choosing the split is the next decision.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="roadmap">
+      <header class="section__head">
+        <p class="eyebrow">03 — Roadmap</p>
+        <h2>Four stripes to go</h2>
+      </header>
+      <ol class="roadmap">
+        <li class="roadmap__item is-active">
+          <span class="roadmap__stripe"></span>
+          <span class="mono roadmap__num">M1</span>
+          <h3>Keypoint baseline</h3>
+          <p>Single-frame classifier on keypoints, honest split by recording, baselines, an MLP in PyTorch, confusion matrix.</p>
+        </li>
+        <li class="roadmap__item">
+          <span class="roadmap__stripe"></span>
+          <span class="mono roadmap__num">M2</span>
+          <h3>Time</h3>
+          <p>Positions last seconds, not frames. Use neighbouring frames: smoothing, then a temporal model.</p>
+        </li>
+        <li class="roadmap__item">
+          <span class="roadmap__stripe"></span>
+          <span class="mono roadmap__num">M3</span>
+          <h3>My own footage</h3>
+          <p>Pose estimation on my own sparring videos — and working out which skeleton is me.</p>
+        </li>
+        <li class="roadmap__item">
+          <span class="roadmap__stripe"></span>
+          <span class="mono roadmap__num">M4</span>
+          <h3>Training stats</h3>
+          <p>Time per position, transitions, where I get passed. The reason this project exists.</p>
+        </li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Data: <a href="https://vicos.si/resources/jiujitsu/">Brazilian Jiu-Jitsu Positions Dataset</a>,
+      ViCoS Lab, University of Ljubljana — <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>.
+      Skeleton clips are derived from its annotations.</p>
+    <p class="mono">bjj-positions · lab notebook in README</p>
+  </footer>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
