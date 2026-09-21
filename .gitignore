@@ -1,0 +1,19 @@
+# Raw dataset: large (~200 MB) and research-licensed -> never commit.
+data/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Model checkpoints can get large; results/ (CSV/JSON/figures) IS committed.
+checkpoints/
+*.pt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
