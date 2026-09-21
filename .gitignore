@@ -17,3 +17,6 @@ checkpoints/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local Claude Code tooling config
+.claude/

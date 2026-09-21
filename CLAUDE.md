@@ -51,7 +51,7 @@ to explain every design decision in a job interview.
 ```bash
 .venv/Scripts/python -m pytest                          # tests
 .venv/Scripts/python scripts/export_frontend_data.py    # refresh frontend data
-.venv/Scripts/python -m http.server 8000 --directory frontend
+.venv/Scripts/python scripts/serve_frontend.py           # no-cache dev server, :8000
 ```
 
 Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 wheels exist for
@@ -61,7 +61,10 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
 
 - Milestone 1, plan proposed (steps 0–8, owner tasks A `normalize_pose`, B `train_step`,
   C `confusion_matrix`/`macro_f1`). Owner has not yet chosen C vs. alternative (video split).
-- Done: step 0 (setup), data loader `bjj.data` pulled forward from step 1.
-- Known issue: the 16 inferred segments are camera views of 6 sparring sequences (3 cameras).
-  Splitting must group segments by sequence — resolve in step 1 before any split.
-- Next: step 1 remainder (EDA plots, segment→sequence grouping), then step 3 = owner task A.
+- Done: step 0 (setup); pulled forward from step 1: `bjj.data` loader, `bjj.stats`
+  (class counts, segment matrix, `group_segments`); static frontend in `frontend/`.
+- Finding: 16 segments = camera views of 6 sequences; each sequence covers only a few classes,
+  so a split by sequence drops whole classes. Split strategy is an OPEN OWNER DECISION (step 4).
+- Higgsfield was requested for visuals but the account had 0.1 credits (1 image = 1 credit);
+  hero uses real skeleton animations instead. A photo can be added later if credits exist.
+- Next: step 1 remainder (EDA plots in results/figures), then step 3 = owner task A.
