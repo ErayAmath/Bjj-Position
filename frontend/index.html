@@ -16,6 +16,7 @@
   <header class="topbar">
     <a class="wordmark" href="#top">BJJ<span>/</span>Positions</a>
     <nav class="nav" aria-label="Sections">
+      <a href="#analyse">Analyse</a>
       <a href="#explorer">Positions</a>
       <a href="#data">Data</a>
       <a href="#roadmap">Roadmap</a>
@@ -41,6 +42,7 @@
           <div><dt>Output</dt><dd>18 positions</dd></div>
           <div><dt>Status</dt><dd>Milestone 1</dd></div>
         </dl>
+        <a class="btn btn--primary hero__cta" href="#analyse">Analyse a roll</a>
       </div>
       <figure class="stage stage--hero">
         <canvas id="hero-canvas" aria-label="Animated skeletons of two athletes from the dataset"></canvas>
@@ -58,9 +60,61 @@
       <div class="fact"><span class="fact__value mono" id="fact-missing">—</span><span class="fact__label">frames with one athlete lost</span></div>
     </section>
 
+    <section class="section" id="analyse">
+      <header class="section__head">
+        <p class="eyebrow">01 — Analyse</p>
+        <h2>Upload your roll</h2>
+        <p class="section__lede">Drop in sparring footage and get a breakdown of where the round
+          went. The video is processed on your own machine — it is never sent to a third party.</p>
+      </header>
+
+      <div class="analyse">
+        <div class="analyse__main">
+          <label class="dropzone" id="dropzone" for="video-input">
+            <input class="visually-hidden" id="video-input" type="file" accept="video/*">
+            <span class="dropzone__title">Drop video here</span>
+            <span class="dropzone__hint mono">or click to choose · MP4, MOV, WebM</span>
+          </label>
+
+          <figure class="preview" id="preview" hidden>
+            <video id="preview-video" controls playsinline preload="metadata"></video>
+            <figcaption class="preview__bar">
+              <dl class="filemeta" id="filemeta"></dl>
+              <button class="btn btn--ghost" id="clear-video" type="button">Remove</button>
+            </figcaption>
+          </figure>
+
+          <div class="analyse__actions">
+            <button class="btn btn--primary" id="start-analysis" type="button" disabled>Start analysis</button>
+            <p class="analyse__status mono" id="analysis-status" role="status" aria-live="polite">No video selected.</p>
+          </div>
+        </div>
+
+        <aside class="analyse__side">
+          <div class="privacy">
+            <span class="privacy__tag mono">Confidential by design</span>
+            <ul>
+              <li>Your video stays in this browser until you start an analysis.</li>
+              <li>Analysis runs on a backend on <strong>your own machine</strong> (localhost).</li>
+              <li>The coaching chat only ever sees the statistics — never the video.</li>
+            </ul>
+          </div>
+
+          <ol class="pipeline" aria-label="Analysis pipeline">
+            <li class="pipeline__step" data-state="planned"><span class="pipeline__name">Pose estimation</span><span class="pipeline__state mono">M3</span></li>
+            <li class="pipeline__step" data-state="planned"><span class="pipeline__name">Pick which athlete is you</span><span class="pipeline__state mono">M3</span></li>
+            <li class="pipeline__step" data-state="active"><span class="pipeline__name">Position per frame</span><span class="pipeline__state mono">M1 · in progress</span></li>
+            <li class="pipeline__step" data-state="planned"><span class="pipeline__name">Smoothing over time</span><span class="pipeline__state mono">M2</span></li>
+            <li class="pipeline__step" data-state="planned"><span class="pipeline__name">Round statistics</span><span class="pipeline__state mono">M4</span></li>
+            <li class="pipeline__step" data-state="planned"><span class="pipeline__name">Coaching chat</span><span class="pipeline__state mono">M4</span></li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+
     <section class="section" id="explorer">
       <header class="section__head">
-        <p class="eyebrow">01 — Positions</p>
+        <p class="eyebrow">02 — Positions</p>
         <h2>What the model sees</h2>
         <p class="section__lede">No pixels, no gi colours — only joints. Every clip below is a real
           64-frame stretch from the dataset. Pick a position.</p>
@@ -97,7 +151,7 @@
 
     <section class="section" id="data">
       <header class="section__head">
-        <p class="eyebrow">02 — Data</p>
+        <p class="eyebrow">03 — Data</p>
         <h2>Where the frames are</h2>
         <p class="section__lede">Most positions come in two flavours: the number says which athlete
           the dataset attributes the position to. Standing and 50/50 are symmetric.</p>
@@ -137,7 +191,7 @@
 
     <section class="section" id="roadmap">
       <header class="section__head">
-        <p class="eyebrow">03 — Roadmap</p>
+        <p class="eyebrow">04 — Roadmap</p>
         <h2>Four stripes to go</h2>
       </header>
       <ol class="roadmap">
@@ -179,5 +233,6 @@
   <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
 
   <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/upload.js"></script>
 </body>
 </html>

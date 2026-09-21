@@ -55,6 +55,26 @@ derived dataset excerpts and is therefore under the dataset's CC BY-NC-SA 4.0 li
 
 Then open <http://localhost:8000>.
 
+## Backend plan (not started)
+
+The frontend already has an upload section. It only previews the video locally and calls a
+backend on the same machine once one exists. Planned design:
+
+- **Local only.** A FastAPI app on `localhost` serves `frontend/` and `/api`. Videos are stored
+  under `data/uploads/` (git-ignored) and never leave the machine. Confidentiality comes from
+  the architecture, not from a promise.
+- **API contract** (already used by `frontend/js/upload.js`):
+  `GET /api/health`, `POST /api/analyses` (multipart `video`) -> `202 {"id"}`,
+  later `GET /api/analyses/{id}` for status and results.
+- **Pipeline** (runs as a background job): pretrained pose estimator producing the same
+  17 COCO keypoints as the dataset -> track both athletes and let the user pick which one is
+  them -> position classifier from M1/M2 -> temporal smoothing -> statistics JSON.
+- **Coaching chat** via an LLM API (e.g. Claude). It receives only the aggregated statistics,
+  never video or keypoints. The API key lives in an environment variable on the backend,
+  never in the frontend.
+- **Order:** the pipeline needs M1 (classifier), M2 (time) and M3 (pose estimation on own
+  footage) first. A backend skeleton (health check, upload, job status) can start after M1.
+
 ## Project layout
 
 ```
@@ -99,6 +119,9 @@ data/           raw data, git-ignored
   camera view per sequence (tests viewpoint generalisation, but the same moments are in train),
   or hold out contiguous time blocks within each sequence across all its cameras (honest in
   time, keeps all classes). To be discussed before any split is implemented.
+- **Upload section added to the frontend** without a backend: honest status instead of fake
+  results. Verified that clicking "Start analysis" only issues `GET /api/health` and does not
+  transmit the video when no backend answers.
 - **Frontend palette** (athlete 1 gi white, athlete 2 belt red, symmetric gray) validated with a
   colour-vision-deficiency check: worst adjacent dE 8.8 (protan, gray vs red), target >= 8.
   Muted label gray raised to #80848b for >= 4.5:1 contrast.

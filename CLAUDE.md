@@ -67,4 +67,8 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   so a split by sequence drops whole classes. Split strategy is an OPEN OWNER DECISION (step 4).
 - Higgsfield was requested for visuals but the account had 0.1 credits (1 image = 1 credit);
   hero uses real skeleton animations instead. A photo can be added later if credits exist.
+- Frontend has an upload section (`frontend/js/upload.js`): local preview only; talks to a
+  future same-origin backend (`/api/health`, `POST /api/analyses`). No backend exists yet —
+  plan in README "Backend plan" (FastAPI on localhost, video never leaves the machine, LLM
+  coaching chat sees only aggregated stats, API key server-side). Never fake analysis results.
 - Next: step 1 remainder (EDA plots in results/figures), then step 3 = owner task A.
