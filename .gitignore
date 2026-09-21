@@ -1,5 +1,6 @@
-# Raw dataset: large (~200 MB) and research-licensed -> never commit.
-data/
+# Raw dataset (~200 MB) -> never commit. Leading slash: only the top-level data/,
+# not frontend/data/ (which holds small derived exports).
+/data/
 
 # Python
 .venv/
