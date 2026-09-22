@@ -71,4 +71,8 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   future same-origin backend (`/api/health`, `POST /api/analyses`). No backend exists yet —
   plan in README "Backend plan" (FastAPI on localhost, video never leaves the machine, LLM
   coaching chat sees only aggregated stats, API key server-side). Never fake analysis results.
+- Phase 0 (pose spike, `scripts/pose_spike.py`) ran on two stock clips: only 27–36 % frames
+  with 2 people; entangled ground positions merge into one detection. Clips unsuitable (handheld,
+  cropped). Need a fixed-camera clip of own training; then top-down vs RTMO comparison.
+- Owner prefers simple explanations anchored in the pipeline picture (see memory).
 - Next: step 1 remainder (EDA plots in results/figures), then step 3 = owner task A.

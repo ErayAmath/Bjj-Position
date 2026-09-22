@@ -96,6 +96,28 @@ data/           raw data, git-ignored
 
 ## Lab notebook
 
+### 2026-09-22 — Phase 0: off-the-shelf pose estimation on sparring clips
+
+Setup: `scripts/pose_spike.py`, rtmlib "balanced" (YOLOX-m detector + RTMPose-m, top-down),
+CPU, frames downscaled to 1080 px wide, sampled at 12.5 fps. Input: two 11–17 s stock clips
+(handheld, close-up, portrait 4K, kids in dark gis on a dark mat) — **not** my own footage.
+
+| Clip | frames | exactly 2 people | 1 person | 3+ | mean kp conf | s/frame (CPU) |
+|---|---|---|---|---|---|---|
+| 7988417 (11 s) | 137 | 27 % | 72 % | 1 % | 0.49 | 0.145 |
+| 7988994 (17 s) | 209 | 36 % | 61 % | 2 % | 0.46 | 0.141 |
+
+- **Prediction before the run:** ~70 % of frames with two people; problems in clinches,
+  scrambles and unstructured exchanges. Result: far below the guess; the qualitative
+  prediction (entangled phases fail) was right.
+- **Two causes mixed together.** (1) Footage: the camera follows the action closely, so often
+  only one athlete is fully in frame — "1 person" is then correct. (2) Real model failure:
+  with both athletes clearly visible but entangled on the ground, the detector returns a
+  single box, and some skeletons mix limbs of both athletes.
+- **Consequence:** these clips cannot tell us how well the pipeline works on my own training
+  footage. Needed next: a clip recorded like the dataset (fixed camera, whole mat, both
+  athletes fully visible), then compare top-down vs. bottom-up (RTMO) on it.
+
 ### 2026-09-21 — Project setup, first look at the data
 
 - **Decision: keypoints only, no images.** Only `annotations.json` is available locally, and a
