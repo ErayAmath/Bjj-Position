@@ -11,6 +11,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+# Video pipeline: person detection + pose estimation (RTMPose via ONNX Runtime, Apache-2.0).
+pipeline = ["rtmlib>=0.0.16", "onnxruntime>=1.24", "opencv-python>=4.10"]
 # torch is installed separately (CUDA wheel index), see README.
 
 [build-system]
