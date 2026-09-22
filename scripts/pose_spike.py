@@ -9,6 +9,10 @@ on a clip and writes, into a git-ignored folder:
 This is throwaway exploration code; the real pipeline will live in src/bjj/pipeline/.
 Person ids are NOT tracked: colours are just per-frame detection order and will flicker.
 
+Frames wider than --max-width are downscaled first. The models work on small inputs anyway
+(detector 640x640, pose 192x256 per person), so 4K only costs decoding time. Keypoints in
+poses.jsonl are in the coordinates of the downscaled frame (size recorded in summary.json).
+
 Usage:
     python scripts/pose_spike.py data/videos/roll.mp4 --start 30 --seconds 60 --fps 10
 """
@@ -32,13 +36,38 @@ MIN_DRAW_CONFIDENCE = 0.3
 COLORS_BGR = [(225, 232, 236), (43, 48, 200), (80, 200, 80), (200, 160, 60)]  # white, red, ...
 
 
-def sample_frames(path: Path, start: float, seconds: float, fps: float):
-    """Yield (frame_index, time_s, image) at roughly `fps`, from `start` for `seconds`."""
+def downscale(image: np.ndarray, max_width: int) -> np.ndarray:
+    """Shrink `image` to at most `max_width` pixels wide, keeping the aspect ratio.
+
+    max_width <= 0 disables resizing. Images already narrow enough are returned unchanged.
+    """
+    h, w = image.shape[:2]
+    if max_width <= 0 or w <= max_width:
+        return image
+    scale = max_width / w
+    # INTER_AREA averages pixels when shrinking -> no aliasing, the usual choice for downscaling.
+    return cv2.resize(image, (max_width, round(h * scale)), interpolation=cv2.INTER_AREA)
+
+
+def video_fps(path: Path) -> float:
     cap = cv2.VideoCapture(str(path))
     if not cap.isOpened():
         raise SystemExit(f"Cannot open video: {path}")
-    src_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-    step = max(1, round(src_fps / fps))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    cap.release()
+    return fps
+
+
+def sampling_step(src_fps: float, fps: float) -> int:
+    """Keep every `step`-th source frame. Effective rate is src_fps / step, not exactly `fps`."""
+    return max(1, round(src_fps / fps))
+
+
+def sample_frames(path: Path, start: float, seconds: float, fps: float):
+    """Yield (frame_index, time_s, image) at roughly `fps`, from `start` for `seconds`."""
+    src_fps = video_fps(path)
+    step = sampling_step(src_fps, fps)
+    cap = cv2.VideoCapture(str(path))
     cap.set(cv2.CAP_PROP_POS_MSEC, start * 1000)
     first = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
     last = first + int(seconds * src_fps)
@@ -76,6 +105,8 @@ def main() -> None:
     parser.add_argument("--seconds", type=float, default=60.0, help="clip length in seconds")
     parser.add_argument("--fps", type=float, default=10.0, help="frames per second to analyse")
     parser.add_argument("--mode", default="balanced", choices=["lightweight", "balanced", "performance"])
+    parser.add_argument("--max-width", type=int, default=1080,
+                        help="downscale wider frames to this width before inference (0 = keep original)")
     parser.add_argument("--out", type=Path, default=None, help="default: data/pose_spike/<video name>")
     args = parser.parse_args()
 
@@ -87,12 +118,18 @@ def main() -> None:
     # hallucinate one pose on the full image.
     detector, pose_model = body.det_model, body.pose_model
 
+    # Real sampling rate (e.g. 25 fps source, --fps 10 -> step 2 -> 12.5 fps). The overlay must use
+    # this rate, otherwise it plays back slower or faster than reality.
+    src_fps = video_fps(args.video)
+    effective_fps = src_fps / sampling_step(src_fps, args.fps)
+
     writer = None
     counts = Counter()
     confidences = []
     started = time.perf_counter()
     with open(out_dir / "poses.jsonl", "w", encoding="utf-8") as f:
         for n, (index, t, image) in enumerate(sample_frames(args.video, args.start, args.seconds, args.fps)):
+            image = downscale(image, args.max_width)
             boxes = detector(image)
             if len(boxes):
                 keypoints, scores = pose_model(image, bboxes=boxes)
@@ -110,7 +147,8 @@ def main() -> None:
 
             if writer is None:
                 h, w = image.shape[:2]
-                writer = cv2.VideoWriter(str(out_dir / "overlay.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), args.fps, (w, h))
+                writer_size = (w, h)
+                writer = cv2.VideoWriter(str(out_dir / "overlay.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), effective_fps, writer_size)
             writer.write(draw(image, keypoints, scores))
             if n % 50 == 0:
                 print(f"frame {index} (t={t:.1f}s): {len(keypoints)} people")
@@ -123,6 +161,9 @@ def main() -> None:
     summary = {
         "video": args.video.name,
         "mode": args.mode,
+        "frame_size": [writer_size[0], writer_size[1]],  # width, height after --max-width
+        "source_fps": round(src_fps, 2),
+        "analysed_fps": round(effective_fps, 2),
         "frames_analysed": total,
         "seconds_per_frame": round((time.perf_counter() - started) / total, 3),
         "people_per_frame": {("3+" if k == 3 else str(k)): round(v / total, 3) for k, v in sorted(counts.items())},
