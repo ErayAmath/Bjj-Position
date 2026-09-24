@@ -1,0 +1,3 @@
+model,accuracy,base_accuracy,macro_f1
+majority class,0.1279,,
+logistic regression (raw keypoints),0.1384,0.1431,0.0775

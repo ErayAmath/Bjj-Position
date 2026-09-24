@@ -96,6 +96,53 @@ data/           raw data, git-ignored
 
 ## Lab notebook
 
+### 2026-09-24 — Improving recognition: pose stage and a first end-to-end number
+
+Test data: 358 dataset images sampled evenly over classes and sequences, plus one contiguous
+400-frame clip (side control). Downloaded via HTTP range requests from the 10 GB archive
+(`scripts/fetch_dataset_images.py`, 60 MB instead of 10 GB). All numbers: results/summary.csv.
+
+**Pose stage** (`scripts/eval_pose_on_dataset.py`, metric: both athletes found / PCK@0.2)
+
+| configuration | both found | PCK@0.2 | s/image |
+|---|---|---|---|
+| top-down YOLOX-m + RTMPose-m (default) | 61.7 % | 88.7 % | 0.11 |
+| RTMO bottom-up, score_thr 0.1 | 69.5 % | 85.6 % | 0.09 |
+| **ensemble of both** | **74.6 %** | 86.8 % | 0.21 |
+| ensemble with the large models | 75.4 % | 88.6 % | 0.57 |
+
+- **Detector thresholds are a dead end**: the shipped ONNX detector has NMS baked in, so
+  `score_thr`/`nms_thr` in rtmlib are ignored (verified: 0.05 and 0.7 give identical boxes).
+- **Failures are real, not a metric artefact**: of 358 images, top-down produced fewer than two
+  people in 133; only 2 predictions were rejected as too far from the annotation.
+- Per class: standing 100 %, open guard ~95 %, but back2 45 %, mount1 60 %, side control1 60 %.
+  Entangled positions are where it breaks — as predicted.
+- **Temporal repair** (`bjj.pose_fill`, 400-frame clip): both found 37.9 % -> 67.5 % (gap 5) ->
+  81.5 % (gap 10), while PCK drops 77.0 % -> 68.9 %: borrowed poses are stale.
+
+**Classifier baseline** (`scripts/train_baseline.py`, logistic regression, athlete-swap
+augmentation, held-out camera view per sequence)
+
+| setup | accuracy (18 classes) |
+|---|---|
+| majority class | 12.8 % |
+| raw keypoints, **random frame split** (leaky control) | 81.7 % |
+| raw keypoints, honest camera holdout | 10.7 % |
+| **normalised keypoints**, honest camera holdout | 68.1 % |
+
+- The leaky split would have reported 81.7 % for a model that transfers *nothing* to a new
+  camera (10.7 %). This is the clearest possible demonstration of why the split matters.
+- Normalisation is worth ~57 points. It is owner task A (`bjj.features.normalize_pose`); the
+  68.1 % above come from a throwaway preview implementation, not from committed library code.
+
+**End to end** (images -> ensemble pose -> normalised baseline classifier, held-out camera):
+43.2 % over 18 classes, 49.2 % over the 10 base positions, 55.1 % on the frames where both
+athletes were found. On the side-control clip, per-frame 28.0 %, 31.8 % with a majority filter
+over ±12 frames.
+
+- Pose noise costs ~25 points versus the same classifier on annotated keypoints (68.1 %).
+- Both stages need work; the pose stage is the bigger problem in entangled positions.
+
 ### 2026-09-22 — Phase 0: off-the-shelf pose estimation on sparring clips
 
 Setup: `scripts/pose_spike.py`, rtmlib "balanced" (YOLOX-m detector + RTMPose-m, top-down),

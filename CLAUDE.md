@@ -75,4 +75,11 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   with 2 people; entangled ground positions merge into one detection. Clips unsuitable (handheld,
   cropped). Need a fixed-camera clip of own training; then top-down vs RTMO comparison.
 - Owner prefers simple explanations anchored in the pipeline picture (see memory).
-- Next: step 1 remainder (EDA plots in results/figures), then step 3 = owner task A.
+- Measured (2026-09-24, results/summary.csv): pose ensemble (top-down + RTMO) 74.6 % both
+  athletes found vs 61.7 % default; temporal gap fill up to 81.5 % at the cost of PCK.
+  Baseline classifier on held-out camera: 10.7 % raw vs 68.1 % normalised vs 81.7 % with a
+  leaky random split. End to end 43.2 % (18 classes).
+- OWNER TASK A IS OPEN: `bjj.features.normalize_pose` with `TODO(human)`;
+  tests/test_features.py (8 tests) fails by design until it is implemented.
+- Next after task A: re-run the baseline with the owner's normalisation, then task B
+  (`train_step`, PyTorch MLP).

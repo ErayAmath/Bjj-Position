@@ -1,0 +1,6 @@
+config,max_gap,borrowed,frames_scored,both_found,pck@0.2
+ensemble,0,0,206,0.3786,0.77
+ensemble,1,52,206,0.4806,0.7534
+ensemble,3,105,206,0.5825,0.73
+ensemble,5,141,206,0.6748,0.7103
+ensemble,10,184,206,0.8155,0.6887

@@ -1,0 +1,17 @@
+experiment,data,metric,value,note
+pose: top-down default (yolox_m + rtmpose-m),"358 sampled images, both athletes annotated",both_found,0.617,0.11 s/img
+"pose: RTMO bottom-up, score_thr 0.1",same,both_found,0.695,0.09 s/img
+pose: ensemble top-down + RTMO,same,both_found,0.746,0.21 s/img
+pose: ensemble with large models,same,both_found,0.754,0.57 s/img
+"pose: ensemble, keypoint accuracy",same,pck@0.2,0.868,
+"pose: 400-frame clip, no temporal repair","side control, hardest class",both_found,0.379,
+"pose: 400-frame clip, gap fill max_gap=5",side control,both_found,0.675,pck drops to 0.710
+"pose: 400-frame clip, gap fill max_gap=10",side control,both_found,0.815,pck drops to 0.689
+classifier: majority class,held-out camera per sequence,accuracy,0.128,18 classes
+"classifier: raw keypoints, RANDOM frame split",leaky control experiment,accuracy,0.817,inflated by leakage
+"classifier: raw keypoints, honest camera holdout",held-out camera per sequence,accuracy,0.107,no transfer across views
+"classifier: normalised keypoints, honest holdout",held-out camera per sequence,accuracy,0.681,preview of owner task A
+end-to-end: images -> pose -> classifier,132 images of the held-out camera,accuracy,0.432,18 classes
+end-to-end: base position only,132 images,accuracy,0.492,"10 positions, ignoring athlete 1/2"
+end-to-end: frames where both athletes found,98 images,accuracy,0.551,
+end-to-end: 400-frame clip + smoothing k=12,side control clip,accuracy,0.318,vs 0.280 unsmoothed
