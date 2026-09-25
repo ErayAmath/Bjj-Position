@@ -46,3 +46,13 @@ def normalize_pose(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
     #
     # Run `python -m pytest tests/test_features.py` until everything passes.
     raise NotImplementedError("owner task A")
+
+
+def pose_features(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
+    """(N, 2, 17, 3) -> (N, 104): normalised skeletons flattened, plus two presence flags.
+
+    The presence flags matter: an athlete that was never detected is all zeros, and without a
+    flag the model cannot tell "missing" from "exactly at the reference point".
+    """
+    normalised = normalize_pose(poses, present)
+    return np.concatenate([normalised.reshape(len(poses), -1), present.astype(np.float32)], axis=1)
