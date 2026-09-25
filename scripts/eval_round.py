@@ -24,7 +24,7 @@ import numpy as np
 import torch
 
 from bjj.data import load_annotations
-from bjj.features import pose_features
+from bjj.features import build_features
 from bjj.pipeline.tracking import fill_track_gaps, track_athletes
 from bjj.stats import split_class_name
 from bjj.temporal import sharpen_persistence, viterbi
@@ -89,7 +89,9 @@ def main() -> None:
             poses, usable = fill_track_gaps(poses_raw, present_raw, max_gap=max_gap)
         else:
             poses, usable = poses_raw, present_raw
-        probabilities = predict_proba(model, pose_features(poses, usable).astype(np.float32), device)
+        groups = np.zeros(len(poses), dtype=int)   # one continuous clip
+        features = build_features(poses, usable, groups, **checkpoint.get("feature_config", {}))
+        probabilities = predict_proba(model, features, device)
 
         # One mapping decision for the whole clip, as the user would make it.
         straight = probabilities.argmax(1)

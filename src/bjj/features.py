@@ -56,3 +56,72 @@ def pose_features(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
     """
     normalised = normalize_pose(poses, present)
     return np.concatenate([normalised.reshape(len(poses), -1), present.astype(np.float32)], axis=1)
+
+
+def pair_features(normalised: np.ndarray, present: np.ndarray) -> np.ndarray:
+    """Geometric relations BETWEEN the two athletes, computed from normalised poses.
+
+    The flat keypoint list already contains this information implicitly, but a linear or small
+    model has to discover it. Handing it over directly is cheap and usually worth several
+    accuracy points: who is above whom is what separates mount from being mounted.
+
+    Returns (N, 8): hip-to-hip vector (2) and distance (1), which athlete is higher (1), torso
+    angle of each athlete (2), their difference (1), and the shoulder height gap (1).
+    """
+    hips = normalised[:, :, [LEFT_HIP, RIGHT_HIP], :2].mean(axis=2)        # (N, 2, 2)
+    shoulders = normalised[:, :, [LEFT_SHOULDER, RIGHT_SHOULDER], :2].mean(axis=2)
+    torso = shoulders - hips                                               # (N, 2, 2)
+
+    delta = hips[:, 1] - hips[:, 0]                                        # athlete 2 relative to 1
+    distance = np.linalg.norm(delta, axis=1, keepdims=True)
+    # Image coordinates: y grows downwards, so a smaller y means higher up.
+    above = np.sign(hips[:, 0, 1] - hips[:, 1, 1])[:, None]
+    angles = np.arctan2(torso[..., 1], torso[..., 0])                      # (N, 2)
+    angle_difference = np.arctan2(np.sin(angles[:, 1] - angles[:, 0]),
+                                  np.cos(angles[:, 1] - angles[:, 0]))[:, None]
+    shoulder_gap = (shoulders[:, 1, 1] - shoulders[:, 0, 1])[:, None]
+
+    out = np.concatenate([delta, distance, above, angles, angle_difference, shoulder_gap], axis=1)
+    # Relations are meaningless when an athlete is missing.
+    return np.where(present.all(axis=1)[:, None], out, 0.0)
+
+
+def frame_features(poses: np.ndarray, present: np.ndarray, with_pairs: bool = True) -> np.ndarray:
+    """Per-frame feature vector: normalised keypoints + presence flags (+ pair geometry)."""
+    normalised = normalize_pose(poses, present)
+    parts = [normalised.reshape(len(poses), -1), present.astype(np.float32)]
+    if with_pairs:
+        parts.append(pair_features(normalised, present))
+    return np.concatenate(parts, axis=1).astype(np.float32)
+
+
+def add_context(X: np.ndarray, groups: np.ndarray, offsets: tuple[int, ...] = (-6, -2, 2, 6)) -> np.ndarray:
+    """Append the features of neighbouring frames (same video only).
+
+    A single frame is ambiguous; half a second of context tells a static position apart from a
+    transition. Frames near a video boundary repeat the closest frame inside the same video, so
+    no information leaks across a cut.
+    """
+    n = len(X)
+    index = np.arange(n)
+    parts = [X]
+    for offset in offsets:
+        shifted = np.clip(index + offset, 0, n - 1)
+        same_video = groups[shifted] == groups
+        shifted = np.where(same_video, shifted, index)
+        parts.append(X[shifted])
+    return np.concatenate(parts, axis=1)
+
+
+DEFAULT_CONTEXT = (-6, -2, 2, 6)
+
+
+def build_features(poses: np.ndarray, present: np.ndarray, groups: np.ndarray,
+                   with_pairs: bool = True, context: tuple[int, ...] = DEFAULT_CONTEXT) -> np.ndarray:
+    """The single entry point used by both training and inference.
+
+    Training and inference must build features identically, so the settings are stored with the
+    model and passed back in here. `groups` marks video boundaries (all one video at inference).
+    """
+    X = frame_features(poses, present, with_pairs)
+    return add_context(X, groups, tuple(context)) if context else X

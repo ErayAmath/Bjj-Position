@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from bjj.data import load_annotations
-from bjj.features import pose_features
+from bjj.features import DEFAULT_CONTEXT, build_features
 from bjj.stats import group_segments, segment_class_matrix, split_class_name
 from bjj.temporal import estimate_transition_matrix
 from bjj.train import TrainConfig, fit, predict_proba
@@ -56,12 +56,17 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--hidden", type=int, default=512)
     parser.add_argument("--batch-size", type=int, default=1024)
+    parser.add_argument("--no-pairs", action="store_true", help="drop the athlete-relation features")
+    parser.add_argument("--context", type=int, nargs="*", default=list(DEFAULT_CONTEXT),
+                        help="frame offsets appended as context (empty = single frame)")
     parser.add_argument("--out", type=Path, default=ROOT / "results/position_model.pt")
     args = parser.parse_args()
 
     ann = load_annotations(args.annotations)
-    X = pose_features(ann.poses, ann.present).astype(np.float32)
-    X_swapped = pose_features(ann.poses[:, ::-1], ann.present[:, ::-1]).astype(np.float32)
+    feature_config = {"with_pairs": not args.no_pairs, "context": tuple(args.context)}
+    X = build_features(ann.poses, ann.present, ann.video_ids, **feature_config)
+    X_swapped = build_features(ann.poses[:, ::-1], ann.present[:, ::-1], ann.video_ids, **feature_config)
+    print(f"features per frame: {X.shape[1]}")
     y = ann.labels
     swap = swapped_labels(ann.classes)
 
@@ -94,6 +99,8 @@ def main() -> None:
         "state_dict": model.state_dict(),
         "classes": ann.classes,
         "num_features": X.shape[1],
+        "feature_config": {"with_pairs": feature_config["with_pairs"],
+                           "context": list(feature_config["context"])},
         "hidden": args.hidden,
         "transitions": transitions,
         "results": results,

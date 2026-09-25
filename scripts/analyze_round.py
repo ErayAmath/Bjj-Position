@@ -21,7 +21,7 @@ import cv2
 import numpy as np
 import torch
 
-from bjj.features import pose_features
+from bjj.features import build_features
 from bjj.pipeline.pose import PoseEstimator
 from bjj.pipeline.tracking import fill_track_gaps, track_athletes
 from bjj.stats import split_class_name
@@ -129,7 +129,8 @@ def main() -> None:
 
     poses, present = track_athletes(detections)
     poses, usable = fill_track_gaps(poses, present, max_gap=args.max_gap)
-    features = pose_features(poses, usable).astype(np.float32)
+    groups = np.zeros(len(poses), dtype=int)   # one continuous clip
+    features = build_features(poses, usable, groups, **checkpoint.get("feature_config", {}))
     probabilities = predict_proba(model, features, device)
 
     raw_labels = probabilities.argmax(1)
