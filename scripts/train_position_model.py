@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from bjj.data import load_annotations
-from bjj.features import DEFAULT_CONTEXT, build_features
+from bjj.features import DEFAULT_CONTEXT_SECONDS, build_features
 from bjj.stats import group_segments, segment_class_matrix, split_class_name
 from bjj.temporal import estimate_transition_matrix
 from bjj.train import TrainConfig, fit, predict_proba
@@ -56,16 +56,18 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--hidden", type=int, default=512)
     parser.add_argument("--batch-size", type=int, default=1024)
-    parser.add_argument("--no-pairs", action="store_true", help="drop the athlete-relation features")
-    parser.add_argument("--context", type=int, nargs="*", default=list(DEFAULT_CONTEXT),
-                        help="frame offsets appended as context (empty = single frame)")
+    parser.add_argument("--pairs", action="store_true", help="add the athlete-relation features")
+    parser.add_argument("--context", type=float, nargs="*", default=list(DEFAULT_CONTEXT_SECONDS),
+                        help="context offsets in seconds (empty = single frame)")
+    parser.add_argument("--fps", type=float, default=25.0, help="frame rate of the dataset")
     parser.add_argument("--out", type=Path, default=ROOT / "results/position_model.pt")
     args = parser.parse_args()
 
     ann = load_annotations(args.annotations)
-    feature_config = {"with_pairs": not args.no_pairs, "context": tuple(args.context)}
-    X = build_features(ann.poses, ann.present, ann.video_ids, **feature_config)
-    X_swapped = build_features(ann.poses[:, ::-1], ann.present[:, ::-1], ann.video_ids, **feature_config)
+    feature_config = {"with_pairs": args.pairs, "context_seconds": tuple(args.context)}
+    X = build_features(ann.poses, ann.present, ann.video_ids, args.fps, **feature_config)
+    X_swapped = build_features(ann.poses[:, ::-1], ann.present[:, ::-1], ann.video_ids,
+                               args.fps, **feature_config)
     print(f"features per frame: {X.shape[1]}")
     y = ann.labels
     swap = swapped_labels(ann.classes)
@@ -100,7 +102,8 @@ def main() -> None:
         "classes": ann.classes,
         "num_features": X.shape[1],
         "feature_config": {"with_pairs": feature_config["with_pairs"],
-                           "context": list(feature_config["context"])},
+                           "context_seconds": list(feature_config["context_seconds"])},
+        "trained_fps": args.fps,
         "hidden": args.hidden,
         "transitions": transitions,
         "results": results,

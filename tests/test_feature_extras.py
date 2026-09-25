@@ -61,3 +61,15 @@ def test_add_context_clamps_at_the_ends():
     groups = np.zeros(3, dtype=int)
     out = add_context(X, groups, offsets=(-2,))
     np.testing.assert_array_equal(out[0], [0, 1, 0, 1])
+
+
+def test_context_offsets_scale_with_frame_rate():
+    from bjj.features import context_offsets
+    assert context_offsets((-1.0, -0.5, 0.5, 1.0), 25) == (-25, -13, 13, 25)
+    assert context_offsets((-1.0, -0.5, 0.5, 1.0), 10) == (-10, -5, 5, 10)
+
+
+def test_context_offsets_drop_duplicates_and_zero():
+    from bjj.features import context_offsets
+    # at 2 fps, 0.1 s rounds to 0 and must be dropped; 0.25 s rounds away from zero to +-1
+    assert context_offsets((-1.0, -0.25, -0.1, 0.1, 0.25, 1.0), 2) == (-2, -1, 1, 2)

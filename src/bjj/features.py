@@ -113,15 +113,33 @@ def add_context(X: np.ndarray, groups: np.ndarray, offsets: tuple[int, ...] = (-
     return np.concatenate(parts, axis=1)
 
 
-DEFAULT_CONTEXT = (-6, -2, 2, 6)
+# Context is specified in SECONDS, not frames: the dataset runs at 25 fps while a user video
+# may be analysed at 10 fps, and the model must see the same time span in both cases.
+DEFAULT_CONTEXT_SECONDS = (-2.0, -1.0, -0.5, -0.25, 0.25, 0.5, 1.0, 2.0)
 
 
-def build_features(poses: np.ndarray, present: np.ndarray, groups: np.ndarray,
-                   with_pairs: bool = True, context: tuple[int, ...] = DEFAULT_CONTEXT) -> np.ndarray:
+def context_offsets(context_seconds, fps: float) -> tuple[int, ...]:
+    """Seconds -> frame offsets at this frame rate, dropping duplicates and 0.
+
+    Rounds away from zero: Python's round() would turn 0.5 into 0 (banker's rounding) and
+    silently drop an offset at low frame rates.
+    """
+    offsets = {int(np.sign(seconds) * int(abs(seconds) * fps + 0.5)) for seconds in context_seconds}
+    return tuple(sorted(offset for offset in offsets if offset != 0))
+
+
+def build_features(poses: np.ndarray, present: np.ndarray, groups: np.ndarray, fps: float,
+                   with_pairs: bool = False,
+                   context_seconds=DEFAULT_CONTEXT_SECONDS) -> np.ndarray:
     """The single entry point used by both training and inference.
 
     Training and inference must build features identically, so the settings are stored with the
-    model and passed back in here. `groups` marks video boundaries (all one video at inference).
+    model and passed back in here. `groups` marks video boundaries (all one video at inference),
+    `fps` is the frame rate of THIS data.
+
+    with_pairs defaults to False: measured on the held-out camera, the relation features made no
+    difference (74.4 % without, 74.1 % with) — the network learns those relations by itself.
     """
     X = frame_features(poses, present, with_pairs)
-    return add_context(X, groups, tuple(context)) if context else X
+    offsets = context_offsets(context_seconds, fps) if context_seconds else ()
+    return add_context(X, groups, offsets) if offsets else X

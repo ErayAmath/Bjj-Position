@@ -130,7 +130,7 @@ def main() -> None:
     poses, present = track_athletes(detections)
     poses, usable = fill_track_gaps(poses, present, max_gap=args.max_gap)
     groups = np.zeros(len(poses), dtype=int)   # one continuous clip
-    features = build_features(poses, usable, groups, **checkpoint.get("feature_config", {}))
+    features = build_features(poses, usable, groups, args.fps, **checkpoint.get("feature_config", {}))
     probabilities = predict_proba(model, features, device)
 
     raw_labels = probabilities.argmax(1)

@@ -90,7 +90,7 @@ def main() -> None:
         else:
             poses, usable = poses_raw, present_raw
         groups = np.zeros(len(poses), dtype=int)   # one continuous clip
-        features = build_features(poses, usable, groups, **checkpoint.get("feature_config", {}))
+        features = build_features(poses, usable, groups, args.fps, **checkpoint.get("feature_config", {}))
         probabilities = predict_proba(model, features, device)
 
         # One mapping decision for the whole clip, as the user would make it.
