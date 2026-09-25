@@ -17,6 +17,7 @@
     <a class="wordmark" href="#top">BJJ<span>/</span>Positions</a>
     <nav class="nav" aria-label="Sections">
       <a href="#analyse">Analyse</a>
+      <a href="#round">Round</a>
       <a href="#explorer">Positions</a>
       <a href="#data">Data</a>
       <a href="#roadmap">Roadmap</a>
@@ -112,9 +113,54 @@
       </div>
     </section>
 
+    <section class="section" id="round" hidden>
+      <header class="section__head">
+        <p class="eyebrow">02 — Round analysis</p>
+        <h2>How the round went</h2>
+        <p class="section__lede">Output of the local pipeline: pose estimation, tracking,
+          position classifier, and a temporal model that picks the most likely sequence of
+          positions instead of the most likely single frame.</p>
+      </header>
+
+      <dl class="roundfacts">
+        <div><dt>Source</dt><dd id="round-source">—</dd></div>
+        <div><dt>Length</dt><dd id="round-duration">—</dd></div>
+        <div><dt>Both athletes tracked</dt><dd id="round-detection">—</dd></div>
+        <div><dt>Position changes (raw → smoothed)</dt><dd id="round-changes">—</dd></div>
+        <div id="round-accuracy-row" hidden><dt>Accuracy vs. labels</dt><dd id="round-accuracy">—</dd></div>
+      </dl>
+
+      <div class="tl-wrap">
+        <div class="tl" id="round-timeline"></div>
+        <div class="tl__marker" id="round-marker"></div>
+      </div>
+      <ul class="legend legend--round" id="round-legend"></ul>
+
+      <div class="round">
+        <div id="round-player">
+          <figure class="stage stage--large">
+            <canvas id="round-canvas" aria-label="Tracked skeletons of the analysed round"></canvas>
+            <figcaption class="stage__caption">
+              <span class="stage__label" id="round-label">—</span>
+              <span class="stage__meta mono" id="round-time"></span>
+            </figcaption>
+          </figure>
+          <div class="controls">
+            <button class="btn" id="round-play" type="button" aria-pressed="true">Pause</button>
+            <input class="scrub" id="round-scrub" type="range" min="0" max="0" value="0" aria-label="Frame">
+          </div>
+        </div>
+
+        <div class="panel panel--totals">
+          <div class="panel__head"><h3>Time per position</h3></div>
+          <div class="totals" id="round-totals"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="section" id="explorer">
       <header class="section__head">
-        <p class="eyebrow">02 — Positions</p>
+        <p class="eyebrow">03 — Positions</p>
         <h2>What the model sees</h2>
         <p class="section__lede">No pixels, no gi colours — only joints. Every clip below is a real
           64-frame stretch from the dataset. Pick a position.</p>
@@ -151,7 +197,7 @@
 
     <section class="section" id="data">
       <header class="section__head">
-        <p class="eyebrow">03 — Data</p>
+        <p class="eyebrow">04 — Data</p>
         <h2>Where the frames are</h2>
         <p class="section__lede">Most positions come in two flavours: the number says which athlete
           the dataset attributes the position to. Standing and 50/50 are symmetric.</p>
@@ -191,7 +237,7 @@
 
     <section class="section" id="roadmap">
       <header class="section__head">
-        <p class="eyebrow">04 — Roadmap</p>
+        <p class="eyebrow">05 — Roadmap</p>
         <h2>Four stripes to go</h2>
       </header>
       <ol class="roadmap">

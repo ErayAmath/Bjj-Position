@@ -1,6 +1,7 @@
 import { SkeletonStage } from "./skeleton.js";
 import { POSITIONS, describe } from "./positions.js";
 import { attachTooltip, renderBars, renderHeatmap } from "./charts.js";
+import { setupRound } from "./round.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat("en-US");
@@ -124,6 +125,7 @@ async function main() {
     setupHero(sequences);
     setupExplorer(sequences);
     const bind = attachTooltip($("tooltip"));
+    await setupRound(bind);
     renderBars($("bars"), overview, bind);
     renderHeatmap($("heatmap"), overview, bind);
   } catch (err) {

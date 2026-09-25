@@ -85,6 +85,7 @@ def main() -> None:
                         help="probability of staying in the same position per frame (default: dataset estimate)")
     parser.add_argument("--device", default=None, help="cpu or cuda for the pose models")
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--no-poses", action="store_true", help="omit the tracked poses from the report")
     args = parser.parse_args()
 
     model, checkpoint, device = load_model(args.model)
@@ -146,6 +147,12 @@ def main() -> None:
         "labels_smoothed": smoothed.tolist(),
         "times": np.round(times, 3).tolist(),
     }
+    if not args.no_poses:
+        # Tracked poses in image coordinates, for drawing the round in the frontend.
+        report["poses"] = [
+            [np.round(poses[t, a, :, :2], 1).tolist() if usable[t, a] else None for a in range(2)]
+            for t in range(len(times))
+        ]
     for position, seconds in per_position.items():
         base = split_class_name(position)[0]
         report["time_per_base_position"][base] = round(
