@@ -62,6 +62,26 @@ def read_frame_folder(folder: Path, manifest: Path, fps: float):
             yield n / fps, image
 
 
+def load_or_detect(source, estimator, cache: Path):
+    """Pose estimation is the slow part (~0.2 s/frame on CPU) — cache it per clip."""
+    if cache.exists():
+        stored = np.load(cache, allow_pickle=True)
+        print(f"using cached poses from {cache}")
+        return stored["times"], list(stored["detections"])
+
+    times, detections = [], []
+    for n, (t, image) in enumerate(source, 1):
+        times.append(t)
+        detections.append(estimator(image))
+        if n % 100 == 0:
+            print(f"  {n} frames analysed")
+    print(f"{len(detections)} frames analysed")
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(cache, times=np.array(times),
+                        detections=np.array(detections, dtype=object), allow_pickle=True)
+    return np.array(times), detections
+
+
 def load_model(path: Path):
     checkpoint = torch.load(path, weights_only=False)
     model = PositionMLP(checkpoint["num_features"], len(checkpoint["classes"]), checkpoint["hidden"])
@@ -86,6 +106,8 @@ def main() -> None:
     parser.add_argument("--device", default=None, help="cpu or cuda for the pose models")
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--no-poses", action="store_true", help="omit the tracked poses from the report")
+    parser.add_argument("--cache", type=Path, default=None,
+                        help="npz file with pose detections; reused when it exists (default: data/cache/<name>.npz)")
     args = parser.parse_args()
 
     model, checkpoint, device = load_model(args.model)
@@ -102,13 +124,8 @@ def main() -> None:
     else:
         raise SystemExit("give a video path or --frames/--manifest")
 
-    times, detections = [], []
-    for n, (t, image) in enumerate(source, 1):
-        times.append(t)
-        detections.append(estimator(image))
-        if n % 100 == 0:
-            print(f"  {n} frames analysed")
-    print(f"{len(detections)} frames analysed")
+    cache = args.cache or ROOT / "data/cache" / f"{name}_{args.fps:g}fps.npz"
+    times, detections = load_or_detect(source, estimator, cache)
 
     poses, present = track_athletes(detections)
     poses, usable = fill_track_gaps(poses, present, max_gap=args.max_gap)
@@ -119,7 +136,6 @@ def main() -> None:
     transitions = sharpen_persistence(np.asarray(checkpoint["transitions"]), args.stay)
     smoothed = viterbi(probabilities, transitions)
 
-    times = np.array(times)
     timeline = segments(smoothed, times)
     for item in timeline:
         item["position"] = classes[item["label"]]
