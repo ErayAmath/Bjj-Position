@@ -1,2 +1,0 @@
-max_gap,stay,athlete_mapping,usable_both,accuracy_raw,accuracy_smoothed,base_accuracy_smoothed,changes_raw,changes_smoothed,changes_truth
-5,0.95,identity,0.9755,0.6435,0.6465,0.694,161,27,25
