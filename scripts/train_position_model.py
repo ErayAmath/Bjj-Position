@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from bjj.augment import degrade
 from bjj.data import load_annotations
 from bjj.features import DEFAULT_CONTEXT_SECONDS, build_features
 from bjj.stats import group_segments, segment_class_matrix, split_class_name
@@ -60,6 +61,12 @@ def main() -> None:
     parser.add_argument("--context", type=float, nargs="*", default=list(DEFAULT_CONTEXT_SECONDS),
                         help="context offsets in seconds (empty = single frame)")
     parser.add_argument("--fps", type=float, default=25.0, help="frame rate of the dataset")
+    parser.add_argument("--noise-jitter", type=float, default=0.06,
+                        help="keypoint noise as a fraction of torso size (0 disables)")
+    parser.add_argument("--noise-drop-keypoint", type=float, default=0.05)
+    parser.add_argument("--noise-drop-athlete", type=float, default=0.08)
+    parser.add_argument("--noise-copies", type=int, default=1,
+                        help="how many degraded copies of the training data to add")
     parser.add_argument("--out", type=Path, default=ROOT / "results/position_model.pt")
     args = parser.parse_args()
 
@@ -76,8 +83,25 @@ def main() -> None:
     train = ~(val | test)
     print(f"frames: train {train.sum()}, val {val.sum()}, test {test.sum()}")
 
-    X_train = np.vstack([X[train], X_swapped[train]])
-    y_train = np.concatenate([y[train], swap[y[train]]])
+    # The model is trained on verified keypoints but runs on noisy predicted ones, so part of
+    # the training data is deliberately degraded (measured: +2 points end to end).
+    blocks_X = [X[train], X_swapped[train]]
+    blocks_y = [y[train], swap[y[train]]]
+    noise = {"jitter": args.noise_jitter, "drop_keypoint": args.noise_drop_keypoint,
+             "drop_athlete": args.noise_drop_athlete}
+    if any(noise.values()):
+        rng = np.random.default_rng(0)
+        for copy in range(args.noise_copies):
+            for poses, present, labels in [(ann.poses[train], ann.present[train], y[train]),
+                                           (ann.poses[train][:, ::-1], ann.present[train][:, ::-1],
+                                            swap[y[train]])]:
+                noisy_poses, noisy_present = degrade(poses, present, rng=rng, **noise)
+                blocks_X.append(build_features(noisy_poses, noisy_present, ann.video_ids[train],
+                                               args.fps, **feature_config))
+                blocks_y.append(labels)
+    X_train = np.vstack(blocks_X)
+    y_train = np.concatenate(blocks_y)
+    print(f"training rows: {len(X_train)} ({len(blocks_X)} blocks incl. swap and noise)")
 
     config = TrainConfig(epochs=args.epochs, hidden=args.hidden, batch_size=args.batch_size)
     model, history = fit(X_train, y_train, len(ann.classes), config, X[val], y[val])
@@ -107,6 +131,7 @@ def main() -> None:
         "hidden": args.hidden,
         "transitions": transitions,
         "results": results,
+        "noise": noise,
         "history": history,
     }, args.out)
     (args.out.parent / "position_model_metrics.json").write_text(
