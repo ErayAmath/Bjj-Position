@@ -75,10 +75,39 @@ backend on the same machine once one exists. Planned design:
 - **Order:** the pipeline needs M1 (classifier), M2 (time) and M3 (pose estimation on own
   footage) first. A backend skeleton (health check, upload, job status) can start after M1.
 
+## Pipeline
+
+```
+frames ──► pose estimation ──► tracking ──► features ──► MLP ──► Viterbi ──► timeline
+           bjj.pipeline.pose   bjj.pipeline bjj.features bjj.train bjj.temporal
+                               .tracking
+```
+
+| Stage | What it does | Why it is built that way |
+|---|---|---|
+| Pose | Top-down (YOLOX + RTMPose) **and** bottom-up (RTMO), results merged | The two models fail on different frames; the union found both athletes in 74.6 % of frames vs 61.7 % for the default |
+| Tracking | Hungarian nearest-pose assignment, plus gap filling | The pose model returns people in arbitrary order; the classifier and any statistic about *me* need a stable identity |
+| Features | Owner task A normalisation + athlete-relation geometry + neighbouring frames | Raw pixel coordinates do not transfer to another camera (10.7 % vs 68.1 %) |
+| Model | MLP (PyTorch), athlete-swap augmentation, camera-holdout split | Swap augmentation stops the model keying on annotation order; the split stops leakage between camera views of the same moment |
+| Time | Transition matrix from the dataset + Viterbi | Positions last seconds and not every transition is possible, so the most likely *sequence* beats per-frame guesses |
+
+```bash
+# train (needs owner tasks A and B)
+.venv/Scripts/python scripts/train_position_model.py --epochs 40
+
+# analyse a round
+.venv/Scripts/python scripts/analyze_round.py data/videos/roll.mp4 --fps 10
+.venv/Scripts/python scripts/export_round_to_frontend.py data/analyses/roll.json
+
+# measure the whole pipeline against the dataset labels
+.venv/Scripts/python scripts/precompute_poses.py --frames data/raw/round_images     --manifest data/raw/round_manifest.json --name round_images --fps 25
+.venv/Scripts/python scripts/eval_round.py --manifest data/raw/round_manifest.json --name round_images
+```
+
 ## Project layout
 
 ```
-src/bjj/        library code (data loading, later: features, models, evaluation)
+src/bjj/        library code: data, stats, features, train, temporal, pose_eval, pipeline/
 tests/          pytest tests
 scripts/        one-off entry points (exports, training runs)
 results/        committed experiment outputs (CSV/JSON/figures)
