@@ -56,8 +56,12 @@ def train_step(model: nn.Module, batch_x: torch.Tensor, batch_y: torch.Tensor,
     Careful: gradients in PyTorch *accumulate*. Forgetting to clear them is the single most
     common bug in a training loop, and it does not raise an error — the model just learns badly.
     """
-    # TODO(human): implement the five lines of the training step (owner task B).
-    raise NotImplementedError("owner task B")
+    prediction = model(batch_x)
+    loss = loss_fn(prediction, batch_y)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    return loss.item()
 
 
 @dataclass
