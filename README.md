@@ -125,6 +125,40 @@ data/           raw data, git-ignored
 
 ## Lab notebook
 
+### 2026-09-26 — Milestone 1 done: a working end-to-end MVP
+
+Owner tasks A (`normalize_pose`) and B (`train_step`) are implemented, the MLP is trained, and
+the whole pipeline runs from frames to a position timeline (`scripts/analyze_round.py`).
+
+**Classifier** (MLP, 936 features incl. ±2 s context, athlete-swap and noise augmentation,
+40 epochs, 59 s on an RTX 4070)
+
+| set | what it measures | accuracy |
+|---|---|---|
+| validation (time blocks inside training cameras) | new moments, known camera | 79.2 % |
+| test (one untouched camera per sequence) | known moment, new angle | 90.4 % |
+
+**The test number is optimistic, and that is the main lesson of this milestone.** The held-out
+camera films the *same* sparring at the *same* second as the training cameras, so the model only
+has to recognise a known moment from a new angle.
+
+An attempt to measure real generalisation by holding out a whole sparring sequence collapsed to
+0.4–27 % accuracy — but that measurement is invalid: each position class lives almost entirely
+in one sequence (holding out sequence 3 leaves 0 training frames for mount1 and side_control1).
+**This dataset cannot answer "does it work on a new roll with new people".** Only own footage can.
+
+**End to end** (`scripts/eval_round.py`, 2000-frame round from the held-out camera, real
+predicted poses): **70.5 % over 18 classes, 84.5 % over the 10 base positions.** The gap between
+the two says the model usually gets the position right but confuses *which athlete* holds it —
+in the product that is solved by the user pointing at themselves once.
+
+Viterbi smoothing barely moves accuracy (+0.4 points) but cuts the flicker from 208 position
+changes to 44 (ground truth: 25). Gap filling did not help here: the pose ensemble already found
+both athletes in 92 % of this round's frames.
+
+Example output (`data/analyses/round_images.json`, visible in the dashboard): 80 s round,
+65.5 % standing, 20.9 % takedowns, the rest guard, side control, mount and back.
+
 ### 2026-09-24 — Improving recognition: pose stage and a first end-to-end number
 
 Test data: 358 dataset images sampled evenly over classes and sequences, plus one contiguous

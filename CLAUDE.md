@@ -59,27 +59,19 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
 
 ## Current state
 
-- Milestone 1, plan proposed (steps 0–8, owner tasks A `normalize_pose`, B `train_step`,
-  C `confusion_matrix`/`macro_f1`). Owner has not yet chosen C vs. alternative (video split).
-- Done: step 0 (setup); pulled forward from step 1: `bjj.data` loader, `bjj.stats`
-  (class counts, segment matrix, `group_segments`); static frontend in `frontend/`.
-- Finding: 16 segments = camera views of 6 sequences; each sequence covers only a few classes,
-  so a split by sequence drops whole classes. Split strategy is an OPEN OWNER DECISION (step 4).
-- Higgsfield was requested for visuals but the account had 0.1 credits (1 image = 1 credit);
-  hero uses real skeleton animations instead. A photo can be added later if credits exist.
-- Frontend has an upload section (`frontend/js/upload.js`): local preview only; talks to a
-  future same-origin backend (`/api/health`, `POST /api/analyses`). No backend exists yet —
-  plan in README "Backend plan" (FastAPI on localhost, video never leaves the machine, LLM
-  coaching chat sees only aggregated stats, API key server-side). Never fake analysis results.
-- Phase 0 (pose spike, `scripts/pose_spike.py`) ran on two stock clips: only 27–36 % frames
-  with 2 people; entangled ground positions merge into one detection. Clips unsuitable (handheld,
-  cropped). Need a fixed-camera clip of own training; then top-down vs RTMO comparison.
+- **Milestone 1 is complete.** Owner tasks A (`normalize_pose`) and B (`train_step`) are done;
+  all 69 tests pass. Pipeline: pose ensemble -> tracking -> features -> MLP -> Viterbi ->
+  timeline, entry points `scripts/train_position_model.py`, `scripts/analyze_round.py`,
+  `scripts/eval_round.py`.
+- Numbers (2026-09-26, results/): classifier 79.2 % validation / 90.4 % test; end to end on a
+  held-out 2000-frame round 70.5 % (18 classes), 84.5 % (10 base positions).
+- **Caveat to repeat whenever a number is quoted:** the test camera films the same sparring as
+  the training cameras, so it measures a new angle, not a new roll. Leave-one-sequence-out is
+  impossible here because each class lives in one sequence. Only the owner's own footage can
+  answer generalisation.
+- Split lives in `bjj.split`: test = one camera per sequence, validation = time blocks inside
+  the training cameras with a margin (a second held-out camera cost 9 points).
+- Open: interview questions for LEARNINGS.md, GitHub upload, then M2 (time) / M3 (own footage).
+- Commercial use is blocked by licences: ViCoS dataset and the Human-Art-trained detector are
+  both CC BY-NC-SA (non-commercial). A product needs own data and permissively licensed models.
 - Owner prefers simple explanations anchored in the pipeline picture (see memory).
-- Measured (2026-09-24, results/summary.csv): pose ensemble (top-down + RTMO) 74.6 % both
-  athletes found vs 61.7 % default; temporal gap fill up to 81.5 % at the cost of PCK.
-  Baseline classifier on held-out camera: 10.7 % raw vs 68.1 % normalised vs 81.7 % with a
-  leaky random split. End to end 43.2 % (18 classes).
-- OWNER TASK A IS OPEN: `bjj.features.normalize_pose` with `TODO(human)`;
-  tests/test_features.py (8 tests) fails by design until it is implemented.
-- Next after task A: re-run the baseline with the owner's normalisation, then task B
-  (`train_step`, PyTorch MLP).
