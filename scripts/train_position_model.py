@@ -23,7 +23,8 @@ import torch
 from bjj.augment import degrade
 from bjj.data import load_annotations
 from bjj.features import DEFAULT_CONTEXT_SECONDS, build_features
-from bjj.stats import group_segments, segment_class_matrix, split_class_name
+from bjj.split import split_masks
+from bjj.stats import split_class_name
 from bjj.temporal import estimate_transition_matrix
 from bjj.train import TrainConfig, fit, predict_proba
 
@@ -39,18 +40,6 @@ def swapped_labels(classes: list[str]) -> np.ndarray:
     return np.array(out)
 
 
-def camera_split(ann) -> tuple[np.ndarray, np.ndarray]:
-    """(val_mask, test_mask): the last camera of each sequence tests, the second-to-last validates."""
-    sequences = group_segments(segment_class_matrix(ann))
-    test_segments, val_segments = [], []
-    for s in np.unique(sequences):
-        cameras = np.flatnonzero(sequences == s)
-        test_segments.append(int(cameras[-1]))
-        if len(cameras) > 2:
-            val_segments.append(int(cameras[-2]))
-    return np.isin(ann.video_ids, val_segments), np.isin(ann.video_ids, test_segments)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--annotations", type=Path, default=ROOT / "data/raw/annotations.json")
@@ -61,6 +50,9 @@ def main() -> None:
     parser.add_argument("--context", type=float, nargs="*", default=list(DEFAULT_CONTEXT_SECONDS),
                         help="context offsets in seconds (empty = single frame)")
     parser.add_argument("--fps", type=float, default=25.0, help="frame rate of the dataset")
+    parser.add_argument("--val-share", type=float, default=0.15)
+    parser.add_argument("--val-margin", type=int, default=50,
+                        help="frames dropped around each validation block to avoid leakage")
     parser.add_argument("--noise-jitter", type=float, default=0.06,
                         help="keypoint noise as a fraction of torso size (0 disables)")
     parser.add_argument("--noise-drop-keypoint", type=float, default=0.05)
@@ -79,9 +71,9 @@ def main() -> None:
     y = ann.labels
     swap = swapped_labels(ann.classes)
 
-    val, test = camera_split(ann)
-    train = ~(val | test)
-    print(f"frames: train {train.sum()}, val {val.sum()}, test {test.sum()}")
+    train, val, test = split_masks(ann, val_share=args.val_share, margin=args.val_margin)
+    print(f"frames: train {train.sum()}, val {val.sum()}, test {test.sum()} "
+          f"(test = one camera per sequence; validation = time blocks inside training cameras)")
 
     # The model is trained on verified keypoints but runs on noisy predicted ones, so part of
     # the training data is deliberately degraded (measured: +2 points end to end).
@@ -131,6 +123,7 @@ def main() -> None:
         "hidden": args.hidden,
         "transitions": transitions,
         "results": results,
+        "split": {"val_share": args.val_share, "val_margin": args.val_margin},
         "noise": noise,
         "history": history,
     }, args.out)

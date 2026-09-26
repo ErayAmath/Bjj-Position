@@ -13,6 +13,9 @@ import numpy as np
 LEFT_SHOULDER, RIGHT_SHOULDER = 5, 6
 LEFT_HIP, RIGHT_HIP = 11, 12
 
+MIN_KEYPOINT_CONFIDENCE = 0.1   # below this a keypoint carries no usable position
+MIN_SIZE = 1e-6                 # never divide by (almost) zero
+
 
 def normalize_pose(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
     """Make poses independent of where in the image the athletes are and how big they appear.
@@ -36,58 +39,42 @@ def normalize_pose(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
         * frames where only one athlete is present — the reference frame then comes from that
           athlete alone.
     """
-    # TODO(human): implement the normalisation described above.
-    #
-    # Suggested order:
-    #   1. per frame, compute the reference point (hip midpoint) from the present athletes
-    steve = poses.copy() 
-    (N, ath , joints, Konfidenz) = steve
-    for i in range(N):
-        if present[i, 0] and present[i, 1]:
-            # both athletes present
-            hips = steve[i, :, [LEFT_HIP, RIGHT_HIP], :2]
-            ref_point = hips.mean(axis=(0, 1))
-        elif present[i, 0]:
-            # only athlete 0 present
-            hips = steve[i, 0, [LEFT_HIP, RIGHT_HIP], :2]
-            ref_point = hips.mean(axis=0)
-        elif present[i, 1]:
-            # only athlete 1 present
-            hips = steve[i, 1, [LEFT_HIP, RIGHT_HIP], :2]
-            ref_point = hips.mean(axis=0)
-        else:
-            # no athletes present
-            continue
+    normalised = np.asarray(poses, dtype=np.float64).copy()
+    xy = normalised[..., :2]                     # a view: writing to it writes into `normalised`
+    confidence = normalised[..., 2]
 
-        # Subtract the reference point from x/y coordinates of both athletes
-        steve[i, :, :, :2] -= ref_point
+    reliable = (confidence >= MIN_KEYPOINT_CONFIDENCE) & present[..., None]   # (N, 2, 17)
+    hips_reliable = reliable[:, :, [LEFT_HIP, RIGHT_HIP]].all(axis=2)         # (N, 2)
+    torso_reliable = hips_reliable & reliable[:, :, [LEFT_SHOULDER, RIGHT_SHOULDER]].all(axis=2)
 
-        # Compute scale (torso length) from the present athletes
-        if present[i, 0]:
-            shoulders_0 = steve[i, 0, [LEFT_SHOULDER, RIGHT_SHOULDER], :2]
-            hips_0 = steve[i, 0, [LEFT_HIP, RIGHT_HIP], :2]
-            torso_length_0 = np.linalg.norm(shoulders_0.mean(axis=0) - hips_0.mean(axis=0))
-        else:
-            torso_length_0 = np.nan
+    hip_centre = xy[:, :, [LEFT_HIP, RIGHT_HIP]].mean(axis=2)                 # (N, 2, 2)
+    shoulder_centre = xy[:, :, [LEFT_SHOULDER, RIGHT_SHOULDER]].mean(axis=2)
 
-        if present[i, 1]:
-            shoulders_1 = steve[i, 1, [LEFT_SHOULDER, RIGHT_SHOULDER], :2]
-            hips_1 = steve[i, 1, [LEFT_HIP, RIGHT_HIP], :2]
-            torso_length_1 = np.linalg.norm(shoulders_1.mean(axis=0) - hips_1.mean(axis=0))
-        else:
-            torso_length_1 = np.nan
+    # Fallback when the hips were not detected: the centre of whatever keypoints are reliable.
+    weight = reliable[..., None]
+    reliable_count = reliable.sum(axis=2)                                     # (N, 2)
+    keypoint_centre = (xy * weight).sum(axis=2) / np.maximum(reliable_count, 1)[..., None]
+    centre = np.where(hips_reliable[..., None], hip_centre, keypoint_centre)  # (N, 2, 2)
+    has_centre = present & (hips_reliable | (reliable_count > 0))
 
-        # Use the average torso length of the present athletes as scale
-        scale = np.nanmean([torso_length_0, torso_length_1])
-        if scale > 0:
-            steve[i, :, :, :2] /= scale 
-        
-    #   2. per frame, compute a scale (e.g. shoulder-to-hip distance) from the present athletes
-    #   3. subtract the reference point from x/y, divide by the scale
-    #   4. zero out athletes that are not present, keep the confidence column as it is
-    #
-    # Run `python -m pytest tests/test_features.py` until everything passes.
-    #raise NotImplementedError("owner task A")
+    # Fallback when the torso is unusable: the spread of the reliable keypoints around the centre.
+    distance = np.linalg.norm(xy - centre[:, :, None, :], axis=-1)            # (N, 2, 17)
+    spread = np.sqrt((distance**2 * reliable).sum(axis=2) / np.maximum(reliable_count, 1))
+    torso = np.linalg.norm(shoulder_centre - hip_centre, axis=-1)             # (N, 2)
+    size = np.where(torso_reliable, torso, 2 * spread)
+    has_size = has_centre & (size > MIN_SIZE)
+
+    # One reference point and ONE scale per frame, averaged over the usable athletes: both
+    # athletes must be moved and scaled together, otherwise "who is on top" is lost.
+    frame_centre = (centre * has_centre[..., None]).sum(axis=1) / np.maximum(
+        has_centre.sum(axis=1), 1)[:, None]                                   # (N, 2)
+    frame_size = (size * has_size).sum(axis=1) / np.maximum(has_size.sum(axis=1), 1)
+    frame_size = np.where(has_size.any(axis=1) & (frame_size > MIN_SIZE), frame_size, 1.0)
+
+    xy -= frame_centre[:, None, None, :]
+    xy /= frame_size[:, None, None, None]
+    normalised[~present] = 0.0                   # athletes that were never detected stay zero
+    return normalised
 
 
 def pose_features(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
