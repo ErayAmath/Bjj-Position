@@ -40,12 +40,54 @@ def normalize_pose(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
     #
     # Suggested order:
     #   1. per frame, compute the reference point (hip midpoint) from the present athletes
+    steve = poses.copy() 
+    (N, ath , joints, Konfidenz) = steve
+    for i in range(N):
+        if present[i, 0] and present[i, 1]:
+            # both athletes present
+            hips = steve[i, :, [LEFT_HIP, RIGHT_HIP], :2]
+            ref_point = hips.mean(axis=(0, 1))
+        elif present[i, 0]:
+            # only athlete 0 present
+            hips = steve[i, 0, [LEFT_HIP, RIGHT_HIP], :2]
+            ref_point = hips.mean(axis=0)
+        elif present[i, 1]:
+            # only athlete 1 present
+            hips = steve[i, 1, [LEFT_HIP, RIGHT_HIP], :2]
+            ref_point = hips.mean(axis=0)
+        else:
+            # no athletes present
+            continue
+
+        # Subtract the reference point from x/y coordinates of both athletes
+        steve[i, :, :, :2] -= ref_point
+
+        # Compute scale (torso length) from the present athletes
+        if present[i, 0]:
+            shoulders_0 = steve[i, 0, [LEFT_SHOULDER, RIGHT_SHOULDER], :2]
+            hips_0 = steve[i, 0, [LEFT_HIP, RIGHT_HIP], :2]
+            torso_length_0 = np.linalg.norm(shoulders_0.mean(axis=0) - hips_0.mean(axis=0))
+        else:
+            torso_length_0 = np.nan
+
+        if present[i, 1]:
+            shoulders_1 = steve[i, 1, [LEFT_SHOULDER, RIGHT_SHOULDER], :2]
+            hips_1 = steve[i, 1, [LEFT_HIP, RIGHT_HIP], :2]
+            torso_length_1 = np.linalg.norm(shoulders_1.mean(axis=0) - hips_1.mean(axis=0))
+        else:
+            torso_length_1 = np.nan
+
+        # Use the average torso length of the present athletes as scale
+        scale = np.nanmean([torso_length_0, torso_length_1])
+        if scale > 0:
+            steve[i, :, :, :2] /= scale 
+        
     #   2. per frame, compute a scale (e.g. shoulder-to-hip distance) from the present athletes
     #   3. subtract the reference point from x/y, divide by the scale
     #   4. zero out athletes that are not present, keep the confidence column as it is
     #
     # Run `python -m pytest tests/test_features.py` until everything passes.
-    raise NotImplementedError("owner task A")
+    #raise NotImplementedError("owner task A")
 
 
 def pose_features(poses: np.ndarray, present: np.ndarray) -> np.ndarray:
