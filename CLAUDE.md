@@ -71,7 +71,13 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   answer generalisation.
 - Split lives in `bjj.split`: test = one camera per sequence, validation = time blocks inside
   the training cameras with a margin (a second held-out camera cost 9 points).
-- Open: interview questions for LEARNINGS.md, GitHub upload, then M2 (time) / M3 (own footage).
+- Published: https://github.com/ErayAmath/Bjj-Position, dashboard live at
+  https://erayamath.github.io/Bjj-Position/ via .github/workflows/pages.yml (Pages source must
+  stay on "GitHub Actions"; a workflow token cannot enable Pages itself).
+- Open: interview questions for LEARNINGS.md (owner wants them after further changes), then
+  the owner's own footage (M3) and M2 (time).
+- Careful: `scripts/export_round_to_frontend.py` overwrites `frontend/data/round.json`, which is
+  committed and public. An analysis of the owner's private footage must not be committed.
 - Commercial use is blocked by licences: ViCoS dataset and the Human-Art-trained detector are
   both CC BY-NC-SA (non-commercial). A product needs own data and permissively licensed models.
 - Owner prefers simple explanations anchored in the pipeline picture (see memory).
