@@ -44,6 +44,10 @@ PyTorch will be installed from the CUDA wheel index once training starts (milest
 
 ## Frontend
 
+**Live: https://erayamath.github.io/Bjj-Position/** — published from `frontend/` by
+`.github/workflows/pages.yml` on every push to `main`. The upload section is inert there: the
+analysis pipeline runs locally, so the public page reports that no backend is reachable.
+
 A static dashboard (plain HTML/CSS/JS, no build step) lives in `frontend/`. It shows the
 dataset statistics and animates real skeleton sequences per position. `frontend/data/` holds
 derived dataset excerpts and is therefore under the dataset's CC BY-NC-SA 4.0 licence.
