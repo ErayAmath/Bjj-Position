@@ -104,6 +104,20 @@ frames ──► pose estimation ──► tracking ──► features ──►
 .venv/Scripts/python scripts/eval_round.py --manifest data/raw/round_manifest.json --name round_images
 ```
 
+## Licences
+
+| Part | Licence | Consequence |
+|---|---|---|
+| Code in this repository | MIT (see `LICENSE`) | free to use |
+| `frontend/data/*.json` (derived from the dataset) | CC BY-NC-SA 4.0 | attribution, non-commercial, share-alike |
+| ViCoS BJJ dataset (not included) | CC BY-NC-SA 4.0 | non-commercial |
+| YOLOX detector weights (Human-Art) | CC BY-NC-SA 4.0 | non-commercial |
+| RTMPose / RTMO weights (body7 mix) | mixed, check per source dataset | verify before any product use |
+
+**This project is therefore research/portfolio only.** A commercial product would need its own
+recorded and labelled data plus models trained on permissively licensed sources. Noted here so
+the constraint is not discovered late.
+
 ## Project layout
 
 ```
