@@ -1,7 +1,11 @@
 """Convert an analysis JSON into the small file the dashboard loads.
 
 Keeps only what the page draws: the timeline, time per position, and the tracked skeletons
-(rounded, optionally sub-sampled). Written to frontend/data/round.json.
+(rounded, optionally sub-sampled).
+
+By default the result is written to frontend/data/private/, which is git-ignored: an analysis
+of your own training must never end up in a public repository. Pass --demo to overwrite the
+committed demo round instead.
 
 Usage:
     python scripts/export_round_to_frontend.py data/analyses/round_images.json
@@ -22,9 +26,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("analysis", type=Path)
     parser.add_argument("--every", type=int, default=2, help="keep every n-th frame")
-    parser.add_argument("--out", type=Path, default=ROOT / "frontend/data/round.json")
+    parser.add_argument("--demo", action="store_true",
+                        help="overwrite the public demo round (frontend/data/round.json) instead")
+    parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
 
+    out = args.out or (ROOT / "frontend/data/round.json" if args.demo
+                       else ROOT / "frontend/data/private/round.json")
     report = json.loads(args.analysis.read_text(encoding="utf-8"))
     step = max(1, args.every)
     payload = {
@@ -45,10 +53,15 @@ def main() -> None:
         "labels_raw": report["labels_raw"][::step],
         "poses": report.get("poses", [])[::step],
         "accuracy": report.get("accuracy"),
+        "private": not args.demo,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
-    print(f"wrote {args.out.relative_to(ROOT)} ({args.out.stat().st_size / 1024:.0f} KB)")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+    print(f"wrote {out.relative_to(ROOT)} ({out.stat().st_size / 1024:.0f} KB)")
+    if args.demo:
+        print("WARNING: this file is committed and public.")
+    else:
+        print("This folder is git-ignored; the dashboard prefers it over the public demo.")
 
 
 if __name__ == "__main__":

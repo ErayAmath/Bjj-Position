@@ -44,6 +44,10 @@ PyTorch will be installed from the CUDA wheel index once training starts (milest
 
 ## Frontend
 
+**Own footage stays private:** `export_round_to_frontend.py` writes to the git-ignored
+`frontend/data/private/`, and the dashboard prefers that file over the committed demo round.
+Only `--demo` touches the public one.
+
 **Live: https://erayamath.github.io/Bjj-Position/** — published from `frontend/` by
 `.github/workflows/pages.yml` on every push to `main`. The upload section is inert there: the
 analysis pipeline runs locally, so the public page reports that no backend is reachable.
@@ -102,6 +106,7 @@ frames ──► pose estimation ──► tracking ──► features ──►
 # analyse a round
 .venv/Scripts/python scripts/analyze_round.py data/videos/roll.mp4 --fps 10
 .venv/Scripts/python scripts/export_round_to_frontend.py data/analyses/roll.json
+.venv/Scripts/python scripts/serve_frontend.py            # add --lan to reach it from a phone
 
 # measure the whole pipeline against the dataset labels
 .venv/Scripts/python scripts/precompute_poses.py --frames data/raw/round_images     --manifest data/raw/round_manifest.json --name round_images --fps 25

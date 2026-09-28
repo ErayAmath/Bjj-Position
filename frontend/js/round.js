@@ -104,19 +104,24 @@ function renderLegend(container) {
 }
 
 export async function setupRound(bindTooltip) {
+  // A locally exported analysis wins over the committed demo. On the public site the private
+  // file does not exist (it is git-ignored), so visitors always see the demo round.
   let data;
-  try {
-    const res = await fetch("data/round.json");
-    if (!res.ok) return;                       // no analysis exported yet: section stays hidden
-    data = await res.json();
-  } catch {
-    return;
+  for (const path of ["data/private/round.json", "data/round.json"]) {
+    try {
+      const res = await fetch(path);
+      if (res.ok) { data = await res.json(); break; }
+    } catch { /* keep trying */ }
   }
+  if (!data) return;                           // nothing exported yet: section stays hidden
 
   const section = $("round");
   section.hidden = false;
 
   $("round-source").textContent = data.source;
+  if (data.private) {
+    $("round-privacy").hidden = false;
+  }
   $("round-duration").textContent = fmtSeconds(data.duration_s);
   $("round-detection").textContent = `${Math.round(data.both_after_gap_fill * 100)}%`;
   $("round-changes").textContent = `${data.changes_raw} → ${data.changes_smoothed}`;
