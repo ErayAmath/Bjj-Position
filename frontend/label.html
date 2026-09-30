@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Label a Roll</title>
+  <meta name="description" content="Mark position changes in a sparring video to build ground truth.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0b0d'/%3E%3Crect y='12' width='32' height='8' fill='%23000'/%3E%3Crect x='18' y='12' width='10' height='8' fill='%23c8302b'/%3E%3C/svg%3E">
+</head>
+<body class="labelling">
+  <header class="topbar">
+    <a class="wordmark" href="index.html">BJJ<span>/</span>Positions</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="section section--first">
+      <header class="section__head">
+        <p class="eyebrow">Ground truth</p>
+        <h2>Label a roll</h2>
+        <p class="section__lede">Mark every position change with one keystroke. The video never
+          leaves this browser; the labels are downloaded as a file you keep. Without labels of
+          your own footage there is no way to tell whether a change to the model helped.</p>
+      </header>
+
+      <label class="dropzone" id="dropzone" for="video-input">
+        <input class="visually-hidden" id="video-input" type="file" accept="video/*">
+        <span class="dropzone__title">Choose video</span>
+        <span class="dropzone__hint mono">stays on this device</span>
+      </label>
+
+      <div class="labeller" id="labeller" hidden>
+        <div>
+          <figure class="preview">
+            <video id="video" controls playsinline preload="metadata"></video>
+            <figcaption class="preview__bar">
+              <span class="mono" id="clock">0.0 s</span>
+              <span class="mono" id="current">— no position yet —</span>
+              <span class="mono" id="speed-label">1.0×</span>
+            </figcaption>
+          </figure>
+
+          <div class="tl-wrap" style="margin-top:14px">
+            <div class="tl" id="strip"></div>
+          </div>
+
+          <div class="controls">
+            <button class="btn" id="play" type="button">Play</button>
+            <button class="btn btn--ghost" id="back" type="button">−1 s</button>
+            <button class="btn btn--ghost" id="forward" type="button">+1 s</button>
+            <button class="btn btn--ghost" id="slower" type="button">Slower</button>
+            <button class="btn btn--ghost" id="faster" type="button">Faster</button>
+            <button class="btn btn--ghost" id="undo" type="button">Undo</button>
+            <button class="btn btn--primary" id="save" type="button" disabled>Download labels</button>
+          </div>
+        </div>
+
+        <aside class="labeller__side">
+          <div class="panel__head"><h3>Keys</h3></div>
+          <ul class="keylist" id="keylist"></ul>
+          <p class="keyhint">Shift + key marks athlete&nbsp;2 (e.g. you are on the bottom).
+            Space plays and pauses, Backspace removes the last mark.</p>
+
+          <div class="panel__head" style="margin-top:28px"><h3>Marks <span class="mono" id="count">0</span></h3></div>
+          <ol class="marks" id="marks"></ol>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Labels are ground truth for <code>scripts/eval_own_labels.py</code>. Save the file to
+      <code>data/labels/</code> — that folder is git-ignored.</p>
+  </footer>
+
+  <script type="module" src="js/label.js"></script>
+</body>
+</html>

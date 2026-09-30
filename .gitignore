@@ -25,3 +25,6 @@ Thumbs.db
 
 # Analyses of my own footage: local only, never published
 frontend/data/private/
+
+# Ground-truth labels of my own footage
+data/labels/

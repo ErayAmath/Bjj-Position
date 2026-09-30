@@ -113,6 +113,23 @@ frames ──► pose estimation ──► tracking ──► features ──►
 .venv/Scripts/python scripts/eval_round.py --manifest data/raw/round_manifest.json --name round_images
 ```
 
+## Labelling your own footage
+
+The only measurement that answers "does it work on my videos" needs ground truth of your own.
+
+1. `python scripts/serve_frontend.py`, open <http://localhost:8000/label.html>
+2. Choose the video (it stays in the browser), mark every position change with one keystroke:
+   digits pick the position, Shift marks athlete 2, Space plays and pauses.
+3. Download the labels and save them under `data/labels/` (git-ignored).
+4. Compare them against an analysis:
+
+```bash
+python scripts/eval_own_labels.py data/analyses/roll.json data/labels/roll.labels.json
+```
+
+It reports overall accuracy, accuracy per position and the confusions that cost the most
+seconds, so the next improvement can be aimed rather than guessed.
+
 ## Licences
 
 | Part | Licence | Consequence |
