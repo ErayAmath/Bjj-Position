@@ -36,22 +36,62 @@ def merge_poses(primary: np.ndarray, extra: np.ndarray, min_distance_ratio: floa
 
 
 def keep_most_confident(poses: np.ndarray, limit: int = 2) -> np.ndarray:
-    """Keep the `limit` most confident people (spectators score lower than the athletes)."""
+    """Keep the `limit` most confident people."""
     if len(poses) <= limit:
         return poses
     order = np.argsort(poses[..., 2].mean(axis=1))[::-1]
     return poses[order[:limit]]
 
 
+def _person_geometry(pose: np.ndarray) -> tuple[np.ndarray, float]:
+    """(centre, size) of one detected person, from its reliable keypoints."""
+    visible = pose[:, 2] >= 0.3
+    if visible.sum() < 2:
+        return np.zeros(2), 0.0
+    points = pose[visible, :2]
+    return points.mean(axis=0), float(np.hypot(*(points.max(axis=0) - points.min(axis=0))))
+
+
+def select_rolling_pair(poses: np.ndarray) -> np.ndarray:
+    """Pick the two people who are actually rolling, out of everyone in frame.
+
+    Confidence is the wrong criterion in a busy gym: a bystander standing in full view scores
+    higher than two entangled grapplers, so the pipeline ended up tracking spectators.
+
+    Two properties separate the pair from everyone else:
+      * they are close to the camera, so they are LARGE in the image,
+      * they are grappling, so they are CLOSE TO EACH OTHER relative to their own size.
+
+    The score multiplies both, which keeps a big pair that briefly separates while rejecting a
+    distant pair that happens to stand next to each other.
+    """
+    if len(poses) <= 2:
+        return poses
+    geometry = [_person_geometry(p) for p in poses]
+    best, best_score = None, -np.inf
+    for i in range(len(poses)):
+        for j in range(i + 1, len(poses)):
+            (centre_i, size_i), (centre_j, size_j) = geometry[i], geometry[j]
+            if size_i == 0 or size_j == 0:
+                continue
+            distance = float(np.linalg.norm(centre_i - centre_j))
+            closeness = 1.0 / (1.0 + distance / (0.5 * (size_i + size_j)))
+            score = (size_i + size_j) * closeness
+            if score > best_score:
+                best, best_score = (i, j), score
+    return poses[list(best)] if best else keep_most_confident(poses, 2)
+
+
 class PoseEstimator:
     """Callable: image -> (P, 17, 3) poses as [x, y, confidence]."""
 
     def __init__(self, mode: str = "balanced", device: str = "cpu", rtmo_score_thr: float = 0.1,
-                 ensemble: bool = True, max_people: int = 2):
+                 ensemble: bool = True, max_people: int = 2, pick_rolling_pair: bool = True):
         from rtmlib import Body
 
         self.ensemble = ensemble
         self.max_people = max_people
+        self.pick_rolling_pair = pick_rolling_pair
         body = Body(mode=mode, backend="onnxruntime", device=device)
         self.detector, self.top_down = body.det_model, body.pose_model
         self.bottom_up = None
@@ -77,4 +117,6 @@ class PoseEstimator:
         poses = self._top_down(image)
         if self.ensemble:
             poses = merge_poses(poses, self._bottom_up(image))
+        if self.pick_rolling_pair and self.max_people == 2:
+            return select_rolling_pair(poses)
         return keep_most_confident(poses, self.max_people)

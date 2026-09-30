@@ -40,6 +40,25 @@ def sharpen_persistence(transitions: np.ndarray, stay: float | None) -> np.ndarr
     return out / out.sum(axis=1, keepdims=True)
 
 
+def rescale_transitions(transitions: np.ndarray, frame_ratio: float) -> np.ndarray:
+    """Convert a per-frame transition matrix to a different frame rate.
+
+    The matrix is estimated on the dataset at 25 fps, but a video may be analysed at 10 fps.
+    One analysis step then covers 2.5 dataset frames, and the chance of having changed position
+    in that time is correspondingly higher. Applying the 25 fps matrix unchanged would make the
+    model too reluctant to report a change.
+
+    `frame_ratio` = dataset fps / analysis fps. Formally this is the matrix power P^ratio.
+    """
+    if abs(frame_ratio - 1.0) < 1e-6:
+        return transitions
+    from scipy.linalg import fractional_matrix_power
+
+    powered = np.real(fractional_matrix_power(transitions, frame_ratio))
+    powered = np.clip(powered, 1e-12, None)          # tiny negative values from the numerics
+    return powered / powered.sum(axis=1, keepdims=True)
+
+
 def viterbi(probabilities: np.ndarray, transitions: np.ndarray, epsilon: float = 1e-12) -> np.ndarray:
     """Most likely label sequence given per-frame class probabilities.
 
@@ -67,6 +86,60 @@ def viterbi(probabilities: np.ndarray, transitions: np.ndarray, epsilon: float =
     for t in range(T - 1, 0, -1):
         path[t - 1] = backpointer[t, path[t]]
     return path
+
+
+def merge_short_runs(labels: np.ndarray, min_frames: int) -> np.ndarray:
+    """Dissolve runs shorter than `min_frames` into the neighbour they fit best.
+
+    Viterbi already removes most flicker, but it has no notion of how long a position lasts, so
+    half-second "positions" survive. In BJJ those are not positions, and a statistic like "how
+    often was I passed" counts every one of them as an event.
+
+    The shortest run below the threshold is repeatedly merged into its longer neighbour, which
+    keeps genuinely short transitions attached to whichever phase dominates around them.
+    """
+    if len(labels) == 0 or min_frames <= 1:
+        return labels
+    runs = [[int(label), start, end] for start, end in _run_bounds(labels)
+            for label in [labels[start]]]
+
+    while len(runs) > 1:
+        shortest = min(range(len(runs)), key=lambda i: runs[i][2] - runs[i][1])
+        length = runs[shortest][2] - runs[shortest][1]
+        if length >= min_frames:
+            break
+        before = runs[shortest - 1] if shortest > 0 else None
+        after = runs[shortest + 1] if shortest + 1 < len(runs) else None
+        if before and after:
+            target = before if (before[2] - before[1]) >= (after[2] - after[1]) else after
+        else:
+            target = before or after
+        target[1] = min(target[1], runs[shortest][1])
+        target[2] = max(target[2], runs[shortest][2])
+        runs.pop(shortest)
+        # neighbours with the same label now touch: fuse them so the loop can terminate
+        merged = [runs[0]]
+        for run in runs[1:]:
+            if run[0] == merged[-1][0]:
+                merged[-1][2] = run[2]
+            else:
+                merged.append(run)
+        runs = merged
+
+    out = labels.copy()
+    for label, start, end in runs:
+        out[start:end] = label
+    return out
+
+
+def _run_bounds(labels: np.ndarray) -> list[tuple[int, int]]:
+    """Half-open [start, end) index ranges of runs of equal labels."""
+    bounds, start = [], 0
+    for i in range(1, len(labels) + 1):
+        if i == len(labels) or labels[i] != labels[start]:
+            bounds.append((start, i))
+            start = i
+    return bounds
 
 
 def segments(labels: np.ndarray, times: np.ndarray | None = None) -> list[dict]:

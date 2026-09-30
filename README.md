@@ -148,6 +148,33 @@ data/           raw data, git-ignored
 
 ## Lab notebook
 
+### 2026-09-30 — Three bugs found by running the pipeline on real gym footage
+
+Two clips off the internet (not own footage, TikTok watermarks) were run through the pipeline
+and rendered back as overlay videos (`scripts/render_overlay.py`). Watching the video found
+what the accuracy numbers had hidden.
+
+1. **The pipeline tracked bystanders.** It kept the two *most confident* people, but a bystander
+   standing in full view scores higher than two entangled grapplers. In a busy gym the skeletons
+   sat on people walking past, and "standing" came out at 47.6 % of the round.
+   `bjj.pipeline.pose.select_rolling_pair` now picks the pair that is **large in the image and
+   close to each other** — grapplers are in contact, spectators are not. Standing dropped to
+   13.4 %, and in all sampled frames the skeletons are on the right pair.
+2. **The transition matrix had the wrong frame rate.** It is estimated on the dataset at 25 fps
+   but applied to analyses at 10 fps, where 2.5× more time passes per step.
+   `bjj.temporal.rescale_transitions` raises the matrix to the power fps_train / fps_analysis.
+3. **Half-second "positions".** After Viterbi, 80 of 115 segments were shorter than one second
+   (median 0.5 s). Those are not positions, and any event statistic counts each one.
+   `bjj.temporal.merge_short_runs` dissolves runs below a minimum duration into the neighbour
+   they fit best; 115 segments -> 38 changes over 115 s, about one position every three seconds.
+
+Also fixed: the analysis asked torch whether CUDA is available, while the pose models run on
+ONNX Runtime — the CPU build only warned and fell back. It now asks ONNX Runtime directly.
+
+**What this says about the project:** the end-to-end numbers on dataset footage (70.5 %) said
+nothing about a busy gym with spectators, a moving phone camera and 576p video. Rendering the
+result back onto the video found in ten minutes what no metric had shown.
+
 ### 2026-09-26 — Milestone 1 done: a working end-to-end MVP
 
 Owner tasks A (`normalize_pose`) and B (`train_step`) are implemented, the MLP is trained, and

@@ -81,4 +81,8 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   badge. Only `--demo` overwrites the committed public round.
 - Commercial use is blocked by licences: ViCoS dataset and the Human-Art-trained detector are
   both CC BY-NC-SA (non-commercial). A product needs own data and permissively licensed models.
+- Real-footage findings (2026-09-30): pose selection by confidence tracked bystanders -> use
+  `select_rolling_pair` (large + in contact); transition matrix must be rescaled to the analysis
+  fps (`rescale_transitions`); runs under ~1 s are noise (`merge_short_runs`). Always render an
+  overlay (`scripts/render_overlay.py`) before trusting a timeline.
 - Owner prefers simple explanations anchored in the pipeline picture (see memory).

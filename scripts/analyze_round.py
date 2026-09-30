@@ -25,7 +25,8 @@ from bjj.features import build_features
 from bjj.pipeline.pose import PoseEstimator
 from bjj.pipeline.tracking import fill_track_gaps, track_athletes
 from bjj.stats import split_class_name
-from bjj.temporal import segments, sharpen_persistence, viterbi
+from bjj.temporal import (merge_short_runs, rescale_transitions, segments,
+                          sharpen_persistence, viterbi)
 from bjj.train import PositionMLP, predict_proba
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,6 +102,8 @@ def main() -> None:
     parser.add_argument("--start", type=float, default=0.0)
     parser.add_argument("--seconds", type=float, default=None)
     parser.add_argument("--max-gap", type=int, default=10, help="frames a lost athlete may be carried forward")
+    parser.add_argument("--min-seconds", type=float, default=1.0,
+                        help="positions shorter than this are dissolved into their neighbours (0 = off)")
     parser.add_argument("--stay", type=float, default=None,
                         help="probability of staying in the same position per frame (default: dataset estimate)")
     parser.add_argument("--device", default=None, help="cpu or cuda for the pose models")
@@ -112,7 +115,10 @@ def main() -> None:
 
     model, checkpoint, device = load_model(args.model)
     classes = checkpoint["classes"]
-    pose_device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    # The pose models run through ONNX Runtime, not torch: ask ONNX which providers it has
+    # instead of asking torch about CUDA (the CPU build would only warn and fall back).
+    import onnxruntime
+    pose_device = args.device or ("cuda" if "CUDAExecutionProvider" in onnxruntime.get_available_providers() else "cpu")
     estimator = PoseEstimator(device=pose_device)
 
     if args.frames:
@@ -134,8 +140,13 @@ def main() -> None:
     probabilities = predict_proba(model, features, device)
 
     raw_labels = probabilities.argmax(1)
-    transitions = sharpen_persistence(np.asarray(checkpoint["transitions"]), args.stay)
+    # The transition matrix was estimated at the dataset's frame rate; rescale it to ours.
+    trained_fps = checkpoint.get("trained_fps", 25.0)
+    transitions = rescale_transitions(np.asarray(checkpoint["transitions"]), trained_fps / args.fps)
+    transitions = sharpen_persistence(transitions, args.stay)
     smoothed = viterbi(probabilities, transitions)
+    changes_smoothed = int((np.diff(smoothed) != 0).sum())
+    smoothed = merge_short_runs(smoothed, int(round(args.min_seconds * args.fps)))
 
     timeline = segments(smoothed, times)
     for item in timeline:
@@ -155,7 +166,9 @@ def main() -> None:
         "both_athletes_found": round(float(present.all(axis=1).mean()), 4),
         "both_after_gap_fill": round(float(usable.all(axis=1).mean()), 4),
         "changes_raw": int((np.diff(raw_labels) != 0).sum()),
-        "changes_smoothed": int((np.diff(smoothed) != 0).sum()),
+        "changes_smoothed": changes_smoothed,
+        "changes_final": int((np.diff(smoothed) != 0).sum()),
+        "min_seconds": args.min_seconds,
         "time_per_position": dict(sorted(per_position.items(), key=lambda kv: -kv[1])),
         "time_per_base_position": {},
         "timeline": timeline,
@@ -181,7 +194,8 @@ def main() -> None:
 
     print(f"\nRound: {report['duration_s']}s, both athletes found in "
           f"{report['both_athletes_found']:.0%} of frames ({report['both_after_gap_fill']:.0%} after gap fill)")
-    print(f"position changes: {report['changes_raw']} raw -> {report['changes_smoothed']} after smoothing")
+    print(f"position changes: {report['changes_raw']} raw -> {report['changes_smoothed']} after "
+          f"smoothing -> {report['changes_final']} after the {args.min_seconds:g}s minimum")
     print("\ntime per position:")
     for position, seconds in report["time_per_position"].items():
         print(f"  {position:16s} {seconds:6.1f}s  {seconds / max(total, 1e-9):5.1%}")

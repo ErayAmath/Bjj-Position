@@ -46,3 +46,42 @@ def test_segments_builds_the_timeline():
     result = segments(labels, times)
     assert [(s["label"], s["frames"]) for s in result] == [(0, 3), (1, 2), (0, 1)]
     assert result[1]["start_time"] == 1.5
+
+
+def test_rescale_transitions_makes_changes_more_likely_at_a_lower_frame_rate():
+    from bjj.temporal import rescale_transitions
+    sticky = np.array([[0.99, 0.01], [0.02, 0.98]])
+    slower = rescale_transitions(sticky, 2.5)      # 25 fps matrix used at 10 fps
+    assert slower[0, 1] > sticky[0, 1]             # changing becomes more likely per step
+    assert slower[0, 0] < sticky[0, 0]
+    np.testing.assert_allclose(slower.sum(axis=1), 1.0)
+
+
+def test_rescale_transitions_is_a_no_op_at_the_same_frame_rate():
+    from bjj.temporal import rescale_transitions
+    m = np.array([[0.9, 0.1], [0.3, 0.7]])
+    np.testing.assert_allclose(rescale_transitions(m, 1.0), m)
+
+
+def test_merge_short_runs_absorbs_a_blip():
+    from bjj.temporal import merge_short_runs
+    labels = np.array([0] * 10 + [1] * 2 + [0] * 10)
+    np.testing.assert_array_equal(merge_short_runs(labels, min_frames=5), np.zeros(22, int))
+
+
+def test_merge_short_runs_keeps_long_enough_positions():
+    from bjj.temporal import merge_short_runs
+    labels = np.array([0] * 10 + [1] * 8 + [0] * 10)
+    np.testing.assert_array_equal(merge_short_runs(labels, min_frames=5), labels)
+
+
+def test_merge_short_runs_prefers_the_longer_neighbour():
+    from bjj.temporal import merge_short_runs
+    labels = np.array([0] * 3 + [2] * 2 + [1] * 12)     # blip between a short and a long run
+    assert set(merge_short_runs(labels, min_frames=5).tolist()) == {1}
+
+
+def test_merge_short_runs_is_a_no_op_without_a_threshold():
+    from bjj.temporal import merge_short_runs
+    labels = np.array([0, 1, 0, 1])
+    np.testing.assert_array_equal(merge_short_runs(labels, min_frames=1), labels)
