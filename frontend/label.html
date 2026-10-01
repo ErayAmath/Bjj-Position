@@ -30,11 +30,20 @@
           your own footage there is no way to tell whether a change to the model helped.</p>
       </header>
 
-      <label class="dropzone" id="dropzone" for="video-input">
-        <input class="visually-hidden" id="video-input" type="file" accept="video/*">
-        <span class="dropzone__title">Choose video</span>
-        <span class="dropzone__hint mono">stays on this device</span>
-      </label>
+      <div class="picker" id="picker">
+        <div class="picker__local" id="picker-local" hidden>
+          <p class="picker__label mono">Videos in data/videos/</p>
+          <ul class="videolist" id="videolist"></ul>
+        </div>
+
+        <label class="dropzone" id="dropzone" for="video-input">
+          <input class="visually-hidden" id="video-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv">
+          <span class="dropzone__title">Or choose a file</span>
+          <span class="dropzone__hint mono">drop it here · stays on this device</span>
+        </label>
+      </div>
+
+      <p class="loaderror" id="loaderror" hidden></p>
 
       <div class="labeller" id="labeller" hidden>
         <div>

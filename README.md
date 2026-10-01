@@ -118,7 +118,9 @@ frames ──► pose estimation ──► tracking ──► features ──►
 The only measurement that answers "does it work on my videos" needs ground truth of your own.
 
 1. `python scripts/serve_frontend.py`, open <http://localhost:8000/label.html>
-2. Choose the video (it stays in the browser), mark every position change with one keystroke:
+2. Pick one of the videos in `data/videos/` from the list (the dev server serves that folder,
+   with byte-range support so the player can seek), or drop in any other file; it stays local.
+   Mark every position change with one keystroke:
    digits pick the position, Shift marks athlete 2, Space plays and pauses.
 3. Download the labels and save them under `data/labels/` (git-ignored).
 4. Compare them against an analysis:

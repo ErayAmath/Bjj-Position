@@ -138,17 +138,78 @@ function download() {
   URL.revokeObjectURL(link.href);
 }
 
-function load(chosen) {
-  if (!chosen || !chosen.type.startsWith("video/")) return;
-  file = chosen;
-  video.src = URL.createObjectURL(chosen);
-  $("dropzone").hidden = true;
+function fail(message) {
+  const box = $("loaderror");
+  box.textContent = message;
+  box.hidden = false;
+}
+
+function open_(name, source) {
+  // `source` is an object URL (local file) or a path served by scripts/serve_frontend.py.
+  $("loaderror").hidden = true;
+  file = { name };
+  video.src = source;
+  $("picker").hidden = true;
   $("labeller").hidden = false;
   marks.length = 0;
   video.addEventListener("loadedmetadata", render, { once: true });
 }
 
+function load(chosen) {
+  if (!chosen) return;
+  const looksLikeVideo = chosen.type.startsWith("video/") ||
+    /\.(mp4|mov|m4v|webm|mkv|avi)$/i.test(chosen.name);
+  if (!looksLikeVideo) {
+    fail(`"${chosen.name}" does not look like a video file (type: ${chosen.type || "unknown"}).`);
+    return;
+  }
+  open_(chosen.name, URL.createObjectURL(chosen));
+}
+
+// The video element stays silent on a codec it cannot decode, so say it out loud.
+video.addEventListener("error", () => {
+  $("labeller").hidden = true;
+  $("picker").hidden = false;
+  fail("This browser cannot play that video (most often an iPhone HEVC/H.265 recording). " +
+       "Convert it to H.264 first, e.g. with: python scripts/convert_video.py <file>");
+});
+
+async function listLocalVideos() {
+  try {
+    const res = await fetch("api/videos");
+    if (!res.ok) return;                       // opened without the local server: file picker only
+    const { videos } = await res.json();
+    if (!videos.length) return;
+    $("videolist").replaceChildren(...videos.map((item) => {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "videolist__item";
+      const name = document.createElement("span");
+      name.textContent = item.name;
+      const size = document.createElement("span");
+      size.className = "mono";
+      size.textContent = `${item.size_mb} MB`;
+      button.append(name, size);
+      button.addEventListener("click", () => open_(item.name, `videos/${encodeURIComponent(item.name)}`));
+      li.append(button);
+      return li;
+    }));
+    $("picker-local").hidden = false;
+  } catch { /* no server, no list */ }
+}
+
 $("video-input").addEventListener("change", (event) => load(event.target.files[0]));
+
+for (const type of ["dragenter", "dragover"]) {
+  $("dropzone").addEventListener(type, (e) => { e.preventDefault(); $("dropzone").classList.add("is-over"); });
+}
+for (const type of ["dragleave", "drop"]) {
+  $("dropzone").addEventListener(type, () => $("dropzone").classList.remove("is-over"));
+}
+$("dropzone").addEventListener("drop", (e) => { e.preventDefault(); load(e.dataTransfer.files[0]); });
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => e.preventDefault());
 video.addEventListener("timeupdate", () => {
   $("clock").textContent = format(video.currentTime);
   const active = activeLabelAt(video.currentTime);
@@ -184,3 +245,4 @@ document.addEventListener("keydown", (event) => {
 
 renderKeys();
 setSpeed(speedIndex);
+listLocalVideos();

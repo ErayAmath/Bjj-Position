@@ -480,6 +480,19 @@ main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
 
 /* --- Labelling tool ------------------------------------------------------ */
 
+.picker { display: grid; gap: 24px; max-width: 760px; }
+.picker__label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
+.videolist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.videolist__item {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 12px 0; background: none; border: 0; border-bottom: 1px solid var(--line);
+  color: var(--ink); cursor: pointer; text-align: left;
+  font: 600 17px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: .03em;
+}
+.videolist__item:hover { color: var(--red-ink); }
+.videolist__item .mono { font-size: 12px; color: var(--ink-3); text-transform: none; letter-spacing: 0; }
+.loaderror { margin: 16px 0 0; padding: 12px 14px; background: var(--surface); border-left: 3px solid var(--red); color: var(--ink-2); font-size: 15px; }
+
 .section--first { padding-top: clamp(32px, 5vw, 56px); }
 .labeller { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 32px; align-items: start; }
 .labeller__side { border-left: 1px solid var(--line); padding-left: 24px; }
