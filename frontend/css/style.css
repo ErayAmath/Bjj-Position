@@ -507,7 +507,9 @@ main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
   font: 500 12px/1 var(--font-mono); color: var(--ink);
   background: var(--surface-2); border: 1px solid var(--line-strong);
 }
-.keylist .swatch { margin-left: auto; width: 16px; height: 8px; }
+.keylist__name { display: flex; flex-direction: column; gap: 2px; }
+.keylist__name small { font-size: 11px; color: var(--ink-3); }
+.keylist .swatch { margin-left: auto; width: 16px; height: 8px; flex: none; }
 .keyhint { margin: 14px 0 0; font-size: 13px; color: var(--ink-3); }
 
 .marks { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }

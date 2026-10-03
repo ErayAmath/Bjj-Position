@@ -46,8 +46,15 @@ function renderKeys() {
     const li = document.createElement("li");
     const kbd = document.createElement("kbd");
     kbd.textContent = key;
+    const position = POSITIONS.find((p) => p.base === base);
     const name = document.createElement("span");
-    name.textContent = POSITIONS.find((p) => p.base === base)?.name ?? base;
+    name.className = "keylist__name";
+    name.textContent = position?.name ?? base;
+    if (position?.suffix) {
+      const hint = document.createElement("small");
+      hint.textContent = position.suffix;
+      name.append(hint);
+    }
     const swatch = document.createElement("i");
     swatch.className = "swatch";
     swatch.style.background = colourFor(base);

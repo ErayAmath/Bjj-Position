@@ -167,6 +167,32 @@ data/           raw data, git-ignored
 
 ## Lab notebook
 
+### 2026-10-03 — What the 1/2 suffix actually means, measured
+
+The dataset documentation is ambiguous about the trailing 1/2 of a class, so it was measured:
+for every class, how often is athlete 1 higher in the image than athlete 2 (y grows downwards)?
+
+| class | athlete 1 higher | meaning of the number |
+|---|---|---|
+| mount1 | 100.0 % | the athlete **on top** |
+| side_control1 | 97.9 % | the athlete on top |
+| turtle1 | 75.7 % | the athlete on top |
+| back1 | 73.5 % | the athlete **controlling the back** |
+| closed_guard1 | 0.0 % | the athlete **playing guard (underneath)** |
+| half_guard1 | 0.1 % | the athlete playing guard |
+| open_guard1 | 0.1 % | the athlete playing guard |
+| takedown1 | 17.9 % | **not conclusive** — undocumented, do not rely on it |
+
+So the suffix is not "who is winning": in a guard it names the bottom athlete, in a pin the top
+one. `frontend/js/positions.js` carries this table, and the labelling tool now shows the meaning
+next to every key.
+
+**Who is athlete 1 is not knowable from a single frame.** The model is trained with athlete-swap
+augmentation on purpose, so it predicts the label relative to the order the two skeletons are fed
+in; the tracker numbers them by who was seen first. The mapping to a real person is one bit that
+is decided once per video — in evaluation by taking whichever of the two assignments fits better,
+in the product by the user pointing at themselves once.
+
 ### 2026-09-30 — Three bugs found by running the pipeline on real gym footage
 
 Two clips off the internet (not own footage, TikTok watermarks) were run through the pipeline

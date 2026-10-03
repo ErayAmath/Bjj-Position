@@ -85,4 +85,9 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   `select_rolling_pair` (large + in contact); transition matrix must be rescaled to the analysis
   fps (`rescale_transitions`); runs under ~1 s are noise (`merge_short_runs`). Always render an
   overlay (`scripts/render_overlay.py`) before trusting a timeline.
+- Label semantics (measured 2026-10-03, see README): the 1/2 suffix names the TOP athlete for
+  mount/side control/turtle, the athlete CONTROLLING in back, and the athlete PLAYING GUARD
+  (bottom) for open/closed/half guard. Takedown's suffix is undocumented and unreliable.
+  Athlete identity itself is relative: swap augmentation means the model predicts relative to
+  input order; the mapping to a person is one bit decided per video.
 - Owner prefers simple explanations anchored in the pipeline picture (see memory).
