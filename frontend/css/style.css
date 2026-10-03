@@ -511,6 +511,7 @@ main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
 .keylist__name small { font-size: 11px; color: var(--ink-3); }
 .keylist .swatch { margin-left: auto; width: 16px; height: 8px; flex: none; }
 .keyhint { margin: 14px 0 0; font-size: 13px; color: var(--ink-3); }
+.keylist--small li { padding: 5px 0; font-size: 13px; }
 
 .marks { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
 .marks li { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }

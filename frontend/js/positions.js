@@ -40,6 +40,25 @@ export const POSITIONS = [
     text: "Bottom athlete on knees and elbows, protecting the neck." },
 ];
 
+// Optional refinement of a position, typed as a letter right after the digit. Only variants
+// that are plausibly visible in 17 keypoints are offered: they differ in where the legs are.
+// Grip-defined guards (spider, lasso) are listed because the owner may want them later, but
+// a keypoint model will struggle with them — the hands are only wrists, no fingers.
+export const SUBTYPES = {
+  open_guard: [["d", "De La Riva"], ["r", "Reverse DLR"], ["x", "X guard"],
+               ["b", "Butterfly"], ["s", "Spider / lasso"], ["c", "Collar sleeve"]],
+  half_guard: [["k", "Knee shield"], ["d", "Deep half"], ["l", "Lockdown"]],
+  closed_guard: [["h", "High guard"], ["o", "Overhook"]],
+  side_control: [["n", "North-south"], ["k", "Kesa gatame"], ["c", "Classic"]],
+  mount: [["h", "High mount"], ["s", "S-mount"], ["t", "Technical"]],
+  back: [["b", "Body triangle"], ["h", "Hooks in"], ["s", "Seatbelt only"]],
+  turtle: [["f", "Front headlock"], ["s", "Side ride"]],
+};
+
+export function subtypeName(base, key) {
+  return (SUBTYPES[base] || []).find(([k]) => k === key)?.[1] ?? null;
+}
+
 export function describe(className) {
   const m = className.match(/^(.*?)([12])?$/);
   const base = m[1];

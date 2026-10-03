@@ -167,6 +167,51 @@ data/           raw data, git-ignored
 
 ## Lab notebook
 
+### 2026-10-03 — Own footage labelled: 32 % accuracy, and why
+
+115 s of own footage labelled with `frontend/label.html` (18 marks), then compared with
+`scripts/eval_own_labels.py` against the pipeline output.
+
+| set | exact (18 classes) | base (10 positions) |
+|---|---|---|
+| dataset, held-out camera | 70.5 % | 84.5 % |
+| **own phone video** | **29.4 %** | **32.5 %** |
+
+Standing is recognised in 100 % of its frames; everything on the ground is wrong. Open guard
+(68.9 s, 60 % of the round) comes out as turtle or back.
+
+**It is not the pose stage.** On those frames both athletes are found in 95 % of frames with
+27 of 34 keypoints visible, and the overlay shows the skeletons on the right people. The
+classifier is *confident and wrong*: mean top probability 0.84, with only 0.115 on the correct
+class and 0.185 on turtle.
+
+**Measured cause — the same position has a different geometry in this footage:**
+
+| | hip distance | leg length | (both in torso lengths) |
+|---|---|---|---|
+| dataset, open guard | 2.45 | 1.54 | |
+| own video, open guard | **1.27** | **1.00** | |
+| dataset, turtle | 1.19 | 1.04 | ← what the model predicts |
+
+Filmed from the end of the mat the legs project shorter and the pair looks compressed, so an
+open guard lands exactly where the dataset's turtle lives. Standing has no foreshortening
+(1.60 vs 1.57) and is therefore perfect.
+
+**What did not work**
+- Mirroring the poses (23.4 % vs 29.4 %) and rotating them: the model is correctly oriented —
+  flipping vertically collapses it to 7 %, which confirms it uses "up is up".
+- `bjj.augment.random_viewpoint`, squeezing one axis during training to simulate the camera
+  position: 32.5 % -> 30.4 %. The code stays, documented and off by default; an affine squeeze
+  is apparently not what a different camera position does to a grappling pair.
+
+**What did work: the owner's own labels.** `scripts/finetune_on_own.py` mixes own frames with a
+dataset sample. Trained on the first 60 % of the video and tested on the last 40 %, with a 2 s
+gap so nothing leaks: **base accuracy 14.8 % -> 44.2 %, exact 10.0 % -> 39.6 %.** Sixty seconds
+of labels nearly tripled it. The bottleneck is the training data, not the architecture.
+
+The labelling tool now also takes optional subtypes (De La Riva, knee shield, north-south, ...)
+as a letter after the digit, so future labelling already collects the finer classes.
+
 ### 2026-10-03 — What the 1/2 suffix actually means, measured
 
 The dataset documentation is ambiguous about the trailing 1/2 of a class, so it was measured:

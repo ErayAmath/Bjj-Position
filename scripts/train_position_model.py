@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from bjj.augment import degrade
+from bjj.augment import degrade, random_viewpoint
 from bjj.data import load_annotations
 from bjj.features import DEFAULT_CONTEXT_SECONDS, build_features
 from bjj.split import split_masks
@@ -59,6 +59,8 @@ def main() -> None:
     parser.add_argument("--noise-drop-athlete", type=float, default=0.08)
     parser.add_argument("--noise-copies", type=int, default=1,
                         help="how many degraded copies of the training data to add")
+    parser.add_argument("--viewpoint-copies", type=int, default=0,
+                        help="copies with a simulated camera position; measured: no help (see README)")
     parser.add_argument("--out", type=Path, default=ROOT / "results/position_model.pt")
     args = parser.parse_args()
 
@@ -91,6 +93,20 @@ def main() -> None:
                 blocks_X.append(build_features(noisy_poses, noisy_present, ann.video_ids[train],
                                                args.fps, **feature_config))
                 blocks_y.append(labels)
+    # A camera at a different height/angle foreshortens the athletes: measured on own footage,
+    # an open guard filmed from the end of the mat has the same geometry as the dataset's turtle.
+    if args.viewpoint_copies:
+        rng = np.random.default_rng(1)
+        for copy in range(args.viewpoint_copies):
+            for poses, present, labels in [(ann.poses[train], ann.present[train], y[train]),
+                                           (ann.poses[train][:, ::-1], ann.present[train][:, ::-1],
+                                            swap[y[train]])]:
+                warped = random_viewpoint(poses, present, rng=rng)
+                warped, warped_present = degrade(warped, present, rng=rng, **noise)
+                blocks_X.append(build_features(warped, warped_present, ann.video_ids[train],
+                                               args.fps, **feature_config))
+                blocks_y.append(labels)
+
     X_train = np.vstack(blocks_X)
     y_train = np.concatenate(blocks_y)
     print(f"training rows: {len(X_train)} ({len(blocks_X)} blocks incl. swap and noise)")
@@ -125,6 +141,7 @@ def main() -> None:
         "results": results,
         "split": {"val_share": args.val_share, "val_margin": args.val_margin},
         "noise": noise,
+        "viewpoint_copies": args.viewpoint_copies,
         "history": history,
     }, args.out)
     (args.out.parent / "position_model_metrics.json").write_text(

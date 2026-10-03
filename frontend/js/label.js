@@ -5,7 +5,7 @@
 //
 // The video is opened with URL.createObjectURL and never uploaded anywhere.
 
-import { POSITIONS, describe } from "./positions.js";
+import { POSITIONS, SUBTYPES, describe, subtypeName } from "./positions.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -26,9 +26,29 @@ const symmetric = (base) => POSITIONS.find((p) => p.base === base)?.who === null
 const labelFor = (base, athlete) => (symmetric(base) ? base : `${base}${athlete}`);
 const format = (t) => `${t.toFixed(1)} s`;
 
-function title(label) {
+function title(label, subtype) {
   const d = describe(label);
-  return d.athlete ? `${d.title} · ${d.athlete}` : d.title;
+  const base = label.replace(/[12]$/, "");
+  const name = d.athlete ? `${d.title} · ${d.athlete}` : d.title;
+  const refined = subtype ? subtypeName(base, subtype) : null;
+  return refined ? `${name} (${refined})` : name;
+}
+
+function renderSubtypes(label) {
+  // Shows the letters that refine the position of the most recent mark.
+  const base = label ? label.replace(/[12]$/, "") : null;
+  const options = base ? SUBTYPES[base] || [] : [];
+  $("subtypes").hidden = options.length === 0;
+  $("subtype-title").textContent = options.length ? `Refine ${describe(label).title}` : "";
+  $("subtypelist").replaceChildren(...options.map(([key, name]) => {
+    const li = document.createElement("li");
+    const kbd = document.createElement("kbd");
+    kbd.textContent = key;
+    const text = document.createElement("span");
+    text.textContent = name;
+    li.append(kbd, text);
+    return li;
+  }));
 }
 
 function colourFor(label) {
@@ -85,7 +105,7 @@ function render() {
     time.addEventListener("click", () => { video.currentTime = mark.t; });
     const name = document.createElement("span");
     name.className = "marks__name";
-    name.textContent = title(mark.label);
+    name.textContent = title(mark.label, mark.subtype);
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "marks__remove";
@@ -111,7 +131,8 @@ function render() {
   }));
 
   const active = activeLabelAt(video.currentTime);
-  $("current").textContent = active ? title(active.label) : "— no position yet —";
+  $("current").textContent = active ? title(active.label, active.subtype) : "— no position yet —";
+  renderSubtypes(marks.length ? marks[marks.length - 1].label : null);
 }
 
 function addMark(base, athlete) {
@@ -135,7 +156,8 @@ function download() {
     video: file ? file.name : "unknown",
     duration_s: Math.round((video.duration || 0) * 10) / 10,
     created: new Date().toISOString(),
-    marks: marks.map((mark) => ({ t: mark.t, label: mark.label })),
+    marks: marks.map((mark) => (mark.subtype ? { t: mark.t, label: mark.label, subtype: mark.subtype }
+                                             : { t: mark.t, label: mark.label })),
   };
   const blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
   const link = document.createElement("a");
@@ -220,7 +242,8 @@ window.addEventListener("drop", (e) => e.preventDefault());
 video.addEventListener("timeupdate", () => {
   $("clock").textContent = format(video.currentTime);
   const active = activeLabelAt(video.currentTime);
-  $("current").textContent = active ? title(active.label) : "— no position yet —";
+  $("current").textContent = active ? title(active.label, active.subtype) : "— no position yet —";
+  renderSubtypes(marks.length ? marks[marks.length - 1].label : null);
 });
 $("play").addEventListener("click", () => (video.paused ? video.play() : video.pause()));
 video.addEventListener("play", () => { $("play").textContent = "Pause"; });
@@ -239,6 +262,17 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     addMark(entry[1], event.shiftKey ? 2 : 1);
     return;
+  }
+  // A letter right after a mark refines it (De La Riva, knee shield, ...). Optional.
+  const last = marks[marks.length - 1];
+  if (last && /^[a-z]$/.test(event.key)) {
+    const name = subtypeName(last.label.replace(/[12]$/, ""), event.key);
+    if (name) {
+      event.preventDefault();
+      last.subtype = last.subtype === event.key ? undefined : event.key;   // press again to undo
+      render();
+      return;
+    }
   }
   switch (event.key) {
     case " ": event.preventDefault(); video.paused ? video.play() : video.pause(); break;

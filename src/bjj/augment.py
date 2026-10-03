@@ -50,3 +50,42 @@ def degrade(poses: np.ndarray, present: np.ndarray, jitter: float = 0.06,
         still_present = present & ~lost
     out[~still_present] = 0.0
     return out, still_present
+
+
+def random_viewpoint(poses: np.ndarray, present: np.ndarray, max_rotation: float = 15.0,
+                     min_squeeze: float = 0.55, max_shear: float = 0.25,
+                     rng: np.random.Generator | None = None) -> np.ndarray:
+    """Simulate filming the same position from a different camera position.
+
+    Measured motivation: in the dataset's open guard the two athletes' hips are 2.45 torso
+    lengths apart and the legs project at 1.54 torso lengths. In footage filmed from one end of
+    the mat the same position gives 1.27 and 1.00 — which is what the dataset's *turtle* looks
+    like, and turtle is exactly what the model predicted.
+
+    A real viewpoint change is a projection, not an affine map, but squeezing one axis plus a
+    small rotation and shear reproduces its main effect: foreshortening along the camera axis.
+    The same transform is applied to BOTH athletes of a frame, so their relation survives.
+    """
+    rng = rng or np.random.default_rng()
+    out = poses.copy()
+    n = len(poses)
+
+    angle = np.radians(rng.uniform(-max_rotation, max_rotation, n))
+    squeeze = rng.uniform(min_squeeze, 1.0, n)
+    squeeze_axis = np.radians(rng.uniform(0, 180, n))       # direction that gets compressed
+    shear = rng.uniform(-max_shear, max_shear, n)
+
+    cos_a, sin_a = np.cos(angle), np.sin(angle)
+    cos_s, sin_s = np.cos(squeeze_axis), np.sin(squeeze_axis)
+
+    # squeeze along an arbitrary axis = rotate into that axis, scale y, rotate back
+    for i in range(n):
+        rotate_in = np.array([[cos_s[i], sin_s[i]], [-sin_s[i], cos_s[i]]])
+        scale = np.array([[1.0, 0.0], [0.0, squeeze[i]]])
+        rotate_back = rotate_in.T
+        view = rotate_back @ scale @ rotate_in
+        camera = np.array([[cos_a[i], -sin_a[i]], [sin_a[i], cos_a[i]]]) @ np.array([[1.0, shear[i]], [0.0, 1.0]])
+        out[i, :, :, :2] = poses[i, :, :, :2] @ (camera @ view).T
+
+    out[~present] = 0.0
+    return out

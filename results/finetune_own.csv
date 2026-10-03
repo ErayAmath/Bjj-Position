@@ -1,0 +1,2 @@
+fold,train_frames,test_frames,before_exact,before_base,after_exact,after_base
+bjjfootage.labels: first 60 % -> last 40 %,669,439,0.1002,0.1481,0.3964,0.4419

@@ -90,4 +90,10 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   (bottom) for open/closed/half guard. Takedown's suffix is undocumented and unreliable.
   Athlete identity itself is relative: swap augmentation means the model predicts relative to
   input order; the mapping to a person is one bit decided per video.
+- OWN FOOTAGE IS THE BOTTLENECK (measured 2026-10-03): dataset model gets 32.5 % base accuracy
+  on the owner's phone video because an open guard filmed from the end of the mat has the same
+  geometry as the dataset's turtle (hip distance 1.27 vs 2.45 torso lengths). Pose stage is fine
+  (95 % both found). Mirroring, rotation and affine "viewpoint" augmentation did NOT help;
+  fine-tuning on 60 s of own labels did: 14.8 % -> 44.2 % base on the held-out rest.
+  Workflow: label (frontend/label.html) -> scripts/eval_own_labels.py -> scripts/finetune_on_own.py.
 - Owner prefers simple explanations anchored in the pipeline picture (see memory).

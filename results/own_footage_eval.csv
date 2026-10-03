@@ -1,0 +1,10 @@
+position,labelled_seconds,accuracy,confused_with
+back2,1.2,0.0,open_guard1:12
+half_guard2,13.2,0.0,back2:37; back1:37
+open_guard1,3.7,0.4865,back1:19
+open_guard2,68.9,0.2017,turtle1:164; back1:78
+side_control1,9.7,0.2577,turtle1:34; standing:13
+standing,10.9,1.0,
+takedown1,3.8,0.3158,standing:20; open_guard1:6
+takedown2,1.1,0.0,takedown1:11
+turtle1,2.3,0.0,back1:22; back2:1
