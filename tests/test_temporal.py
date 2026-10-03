@@ -85,3 +85,20 @@ def test_merge_short_runs_is_a_no_op_without_a_threshold():
     from bjj.temporal import merge_short_runs
     labels = np.array([0, 1, 0, 1])
     np.testing.assert_array_equal(merge_short_runs(labels, min_frames=1), labels)
+
+
+def test_extend_transitions_adds_reachable_classes():
+    from bjj.temporal import extend_transitions
+    base = np.array([[0.9, 0.1], [0.2, 0.8]])
+    out = extend_transitions(base, extra=1)
+    assert out.shape == (3, 3)
+    np.testing.assert_allclose(out.sum(axis=1), 1.0)
+    assert out[0, 2] > 0                       # the new class is reachable
+    assert out[2, 2] > out[2, 0]               # and it persists like the others
+    np.testing.assert_allclose(out[0, 1] / out[0, 0], base[0, 1] / base[0, 0], rtol=1e-6)
+
+
+def test_extend_transitions_without_new_classes_is_a_no_op():
+    from bjj.temporal import extend_transitions
+    base = np.array([[0.9, 0.1], [0.2, 0.8]])
+    np.testing.assert_array_equal(extend_transitions(base, extra=0), base)

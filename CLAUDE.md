@@ -96,4 +96,6 @@ Environment: Windows 11, Python 3.14 venv in `.venv`, RTX 4070 (torch cu128 whee
   (95 % both found). Mirroring, rotation and affine "viewpoint" augmentation did NOT help;
   fine-tuning on 60 s of own labels did: 14.8 % -> 44.2 % base on the held-out rest.
   Workflow: label (frontend/label.html) -> scripts/eval_own_labels.py -> scripts/finetune_on_own.py.
+- The label vocabulary may exceed the dataset's 18 classes (e.g. leg_entanglement1/2). Fine-tuning
+  extends the model head and the transition matrix automatically; keep that path working.
 - Owner prefers simple explanations anchored in the pipeline picture (see memory).

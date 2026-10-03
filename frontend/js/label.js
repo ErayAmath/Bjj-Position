@@ -5,7 +5,7 @@
 //
 // The video is opened with URL.createObjectURL and never uploaded anywhere.
 
-import { POSITIONS, SUBTYPES, describe, subtypeName } from "./positions.js";
+import { ATTACKS, POSITIONS, SUBTYPES, attackName, describe, subtypeName } from "./positions.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -13,7 +13,7 @@ const $ = (id) => document.getElementById(id);
 const KEYS = [
   ["1", "standing"], ["2", "takedown"], ["3", "open_guard"], ["4", "closed_guard"],
   ["5", "half_guard"], ["6", "5050_guard"], ["7", "side_control"], ["8", "mount"],
-  ["9", "back"], ["0", "turtle"],
+  ["9", "back"], ["0", "turtle"], ["l", "leg_entanglement"],
 ];
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
 
@@ -26,12 +26,25 @@ const symmetric = (base) => POSITIONS.find((p) => p.base === base)?.who === null
 const labelFor = (base, athlete) => (symmetric(base) ? base : `${base}${athlete}`);
 const format = (t) => `${t.toFixed(1)} s`;
 
-function title(label, subtype) {
+function title(label, subtype, attack) {
   const d = describe(label);
   const base = label.replace(/[12]$/, "");
   const name = d.athlete ? `${d.title} · ${d.athlete}` : d.title;
-  const refined = subtype ? subtypeName(base, subtype) : null;
-  return refined ? `${name} (${refined})` : name;
+  const extras = [subtype ? subtypeName(base, subtype) : null, attack ? attackName(attack) : null]
+    .filter(Boolean);
+  return extras.length ? `${name} (${extras.join(", ")})` : name;
+}
+
+function renderAttacks() {
+  $("attacklist").replaceChildren(...ATTACKS.map(([key, name]) => {
+    const li = document.createElement("li");
+    const kbd = document.createElement("kbd");
+    kbd.textContent = key;
+    const text = document.createElement("span");
+    text.textContent = name;
+    li.append(kbd, text);
+    return li;
+  }));
 }
 
 function renderSubtypes(label) {
@@ -55,6 +68,7 @@ function colourFor(label) {
   const family = {
     standing: "#ece8e1", takedown: "#ece8e1",
     open_guard: "#4a9fe0", closed_guard: "#4a9fe0", half_guard: "#4a9fe0", "5050_guard": "#4a9fe0",
+    leg_entanglement: "#4a9fe0",          // guard family: an ashi garami is a leg guard
     side_control: "#d16ba5", mount: "#d16ba5",
     back: "#d9a441", turtle: "#5fbf8f",
   };
@@ -105,7 +119,7 @@ function render() {
     time.addEventListener("click", () => { video.currentTime = mark.t; });
     const name = document.createElement("span");
     name.className = "marks__name";
-    name.textContent = title(mark.label, mark.subtype);
+    name.textContent = title(mark.label, mark.subtype, mark.attack);
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "marks__remove";
@@ -131,7 +145,7 @@ function render() {
   }));
 
   const active = activeLabelAt(video.currentTime);
-  $("current").textContent = active ? title(active.label, active.subtype) : "— no position yet —";
+  $("current").textContent = active ? title(active.label, active.subtype, active.attack) : "— no position yet —";
   renderSubtypes(marks.length ? marks[marks.length - 1].label : null);
 }
 
@@ -156,8 +170,12 @@ function download() {
     video: file ? file.name : "unknown",
     duration_s: Math.round((video.duration || 0) * 10) / 10,
     created: new Date().toISOString(),
-    marks: marks.map((mark) => (mark.subtype ? { t: mark.t, label: mark.label, subtype: mark.subtype }
-                                             : { t: mark.t, label: mark.label })),
+    marks: marks.map((mark) => {
+      const entry = { t: mark.t, label: mark.label };
+      if (mark.subtype) entry.subtype = mark.subtype;
+      if (mark.attack) entry.attack = mark.attack;
+      return entry;
+    }),
   };
   const blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
   const link = document.createElement("a");
@@ -242,7 +260,7 @@ window.addEventListener("drop", (e) => e.preventDefault());
 video.addEventListener("timeupdate", () => {
   $("clock").textContent = format(video.currentTime);
   const active = activeLabelAt(video.currentTime);
-  $("current").textContent = active ? title(active.label, active.subtype) : "— no position yet —";
+  $("current").textContent = active ? title(active.label, active.subtype, active.attack) : "— no position yet —";
   renderSubtypes(marks.length ? marks[marks.length - 1].label : null);
 });
 $("play").addEventListener("click", () => (video.paused ? video.play() : video.pause()));
@@ -257,14 +275,24 @@ $("save").addEventListener("click", download);
 
 document.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement || $("labeller").hidden) return;
-  const entry = KEYS.find(([key]) => key === event.key || key === event.code.replace("Digit", ""));
+  // Shift turns "l" into "L", so compare case-insensitively — otherwise Shift + a letter key
+  // (athlete 2) would silently do nothing. Attack letters are checked first and never collide,
+  // because no position key uses one of them.
+  const typed = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  const last = marks[marks.length - 1];
+  if (last && /^[A-Z]$/.test(event.key) && attackName(event.key)) {
+    event.preventDefault();
+    last.attack = last.attack === event.key ? undefined : event.key;      // press again to undo
+    render();
+    return;
+  }
+  const entry = KEYS.find(([key]) => key === typed || key === event.code.replace("Digit", ""));
   if (entry) {
     event.preventDefault();
     addMark(entry[1], event.shiftKey ? 2 : 1);
     return;
   }
-  // A letter right after a mark refines it (De La Riva, knee shield, ...). Optional.
-  const last = marks[marks.length - 1];
+  // A lower-case letter right after a mark refines it (De La Riva, saddle, ...). Optional.
   if (last && /^[a-z]$/.test(event.key)) {
     const name = subtypeName(last.label.replace(/[12]$/, ""), event.key);
     if (name) {
@@ -285,5 +313,6 @@ document.addEventListener("keydown", (event) => {
 });
 
 renderKeys();
+renderAttacks();
 setSpeed(speedIndex);
 listLocalVideos();

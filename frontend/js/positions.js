@@ -38,6 +38,11 @@ export const POSITIONS = [
     text: "One athlete behind the other, usually with hooks in — the most dominant position." },
   { base: "turtle", name: "Turtle", who: "athlete on top", suffix: "who is on top",
     text: "Bottom athlete on knees and elbows, protecting the neck." },
+  // Not in the ViCoS dataset: a class of our own, learnable only after fine-tuning on own
+  // labels. Until there are enough examples the model will keep calling it a guard.
+  { base: "leg_entanglement", name: "Leg entanglement", who: "athlete attacking the legs",
+    suffix: "who attacks the legs",
+    text: "Legs tangled for a leg attack — ashi garami family (single leg X, saddle, outside ashi)." },
 ];
 
 // Optional refinement of a position, typed as a letter right after the digit. Only variants
@@ -47,13 +52,25 @@ export const POSITIONS = [
 export const SUBTYPES = {
   open_guard: [["d", "De La Riva"], ["r", "Reverse DLR"], ["x", "X guard"],
                ["b", "Butterfly"], ["s", "Spider / lasso"], ["c", "Collar sleeve"]],
-  half_guard: [["k", "Knee shield"], ["d", "Deep half"], ["l", "Lockdown"]],
+  half_guard: [["k", "Knee shield"], ["d", "Deep half"], ["z", "Lockdown"]],
   closed_guard: [["h", "High guard"], ["o", "Overhook"]],
   side_control: [["n", "North-south"], ["k", "Kesa gatame"], ["c", "Classic"]],
   mount: [["h", "High mount"], ["s", "S-mount"], ["t", "Technical"]],
   back: [["b", "Body triangle"], ["h", "Hooks in"], ["s", "Seatbelt only"]],
   turtle: [["f", "Front headlock"], ["s", "Side ride"]],
+  leg_entanglement: [["s", "Single leg X"], ["a", "Saddle / 411"], ["o", "Outside ashi"],
+                     ["r", "Reverse ashi"]],
 };
+
+// Leg attacks, typed as a CAPITAL letter. Independent of the entanglement: you can be in the
+// saddle without attacking, and you can attack from elsewhere.
+export const ATTACKS = [
+  ["H", "Heel hook"], ["A", "Ankle lock"], ["K", "Kneebar"], ["T", "Toe hold"], ["C", "Calf slicer"],
+];
+
+export function attackName(key) {
+  return ATTACKS.find(([k]) => k === key)?.[1] ?? null;
+}
 
 export function subtypeName(base, key) {
   return (SUBTYPES[base] || []).find(([k]) => k === key)?.[1] ?? null;

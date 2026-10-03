@@ -32,13 +32,18 @@ from bjj.data import load_annotations
 from bjj.features import build_features
 from bjj.pipeline.tracking import track_athletes
 from bjj.split import split_masks
-from bjj.train import PositionMLP, predict_proba, train_step
+from bjj.temporal import extend_transitions
+from bjj.train import PositionMLP, extend_output_layer, predict_proba, train_step
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def base_names(classes: list[str]) -> np.ndarray:
     return np.array([c[:-1] if c[-1] in "12" and not c[-2].isdigit() else c for c in classes])
+
+
+def classes_in(labels_path: Path) -> list[str]:
+    return [m["label"] for m in json.loads(labels_path.read_text(encoding="utf-8"))["marks"]]
 
 
 def load_pair(cache_path: Path, labels_path: Path, classes: list[str], fps: float, cfg: dict):
@@ -58,11 +63,12 @@ def load_pair(cache_path: Path, labels_path: Path, classes: list[str], fps: floa
 
 
 def fine_tune(checkpoint: dict, X_own: np.ndarray, y_own: np.ndarray, dataset_sample: tuple,
-              epochs: int, repeats: int, learning_rate: float, seed: int = 0):
+              epochs: int, repeats: int, learning_rate: float, total_classes: int, seed: int = 0):
     """Return a model adapted to the own footage without forgetting the dataset."""
     torch.manual_seed(seed)
-    model = PositionMLP(checkpoint["num_features"], len(checkpoint["classes"]), checkpoint["hidden"])
+    model = PositionMLP(checkpoint["num_features"], known, checkpoint["hidden"])
     model.load_state_dict(checkpoint["state_dict"])
+    model = extend_output_layer(model, total_classes)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
 
@@ -97,7 +103,14 @@ def main() -> None:
     args = parser.parse_args()
 
     checkpoint = torch.load(args.model, weights_only=False)
-    classes, cfg = checkpoint["classes"], checkpoint.get("feature_config", {})
+    cfg = checkpoint.get("feature_config", {})
+    dataset_classes = list(checkpoint["classes"])
+    # Own labels may contain positions the dataset does not have (leg entanglement, ...).
+    extra = sorted({name for _, labels in args.pair for name in classes_in(Path(labels))}
+                   - set(dataset_classes))
+    classes = dataset_classes + extra
+    if extra:
+        print(f"classes only in your labels: {', '.join(extra)}")
     base = base_names(classes)
 
     videos = [load_pair(Path(c), Path(l), classes, args.fps, cfg) for c, l in args.pair]
@@ -125,13 +138,13 @@ def main() -> None:
         folds.append((f"{names[0]}: first 60 % -> last 40 %", X[train], y[train], X[test], y[test]))
 
     for name, train_X, train_y, test_X, test_y in folds:
-        before_model = PositionMLP(checkpoint["num_features"], len(classes), checkpoint["hidden"])
+        before_model = PositionMLP(checkpoint["num_features"], len(dataset_classes), checkpoint["hidden"])
         before_model.load_state_dict(checkpoint["state_dict"])
         device = "cuda" if torch.cuda.is_available() else "cpu"
         before = predict_proba(before_model.to(device), test_X, device).argmax(1)
 
         model, device = fine_tune(checkpoint, train_X, train_y, dataset_sample,
-                                  args.epochs, args.repeats, args.learning_rate)
+                                  args.epochs, args.repeats, args.learning_rate, len(classes))
         after = predict_proba(model, test_X, device).argmax(1)
 
         row = {
@@ -149,8 +162,9 @@ def main() -> None:
     all_X = np.vstack([v[0] for v in videos])
     all_y = np.concatenate([v[1] for v in videos])
     model, _ = fine_tune(checkpoint, all_X, all_y, dataset_sample,
-                         args.epochs, args.repeats, args.learning_rate)
-    torch.save({**checkpoint, "state_dict": model.state_dict(),
+                         args.epochs, args.repeats, args.learning_rate, len(classes))
+    torch.save({**checkpoint, "state_dict": model.state_dict(), "classes": classes,
+                "transitions": extend_transitions(np.asarray(checkpoint["transitions"]), len(extra)),
                 "finetuned_on": names, "finetune_frames": int(len(all_y))}, args.save_model)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

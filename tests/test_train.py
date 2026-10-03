@@ -61,3 +61,22 @@ def test_no_grad_leaks_into_the_returned_loss(tiny_problem):
 
 def test_np_import_is_available():
     assert np.array([1]).sum() == 1
+
+
+def test_extend_output_layer_keeps_the_trained_classes():
+    from bjj.train import extend_output_layer
+    torch.manual_seed(0)
+    model = PositionMLP(8, 3, hidden=32, dropout=0.0).eval()
+    x = torch.randn(5, 8)
+    before = model(x)
+    wider = extend_output_layer(model, 5).eval()
+    after = wider(x)
+    assert after.shape == (5, 5)
+    torch.testing.assert_close(after[:, :3], before)       # old outputs unchanged
+    assert (after[:, 3:] < after[:, :3].min()).all()        # new classes start out unlikely
+
+
+def test_extend_output_layer_is_a_no_op_when_wide_enough():
+    from bjj.train import extend_output_layer
+    model = PositionMLP(8, 4, hidden=16)
+    assert extend_output_layer(model, 4).net[-1].out_features == 4

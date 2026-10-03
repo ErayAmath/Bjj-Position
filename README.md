@@ -209,6 +209,14 @@ dataset sample. Trained on the first 60 % of the video and tested on the last 40
 gap so nothing leaks: **base accuracy 14.8 % -> 44.2 %, exact 10.0 % -> 39.6 %.** Sixty seconds
 of labels nearly tripled it. The bottleneck is the training data, not the architecture.
 
+**Leg attacks** are now labellable: a position `leg_entanglement` (key `l`) that the dataset does
+not have, refined by the entanglement (`s` single leg X, `a` saddle, `o` outside ashi, `r`
+reverse ashi) and by the attack applied (capital `H` heel hook, `A` ankle lock, `K` kneebar,
+`T` toe hold, `C` calf slicer). Marking only the position is enough; the rest is optional.
+Fine-tuning grows the model for classes the dataset never had (`bjj.train.extend_output_layer`
+copies the trained rows and starts the new ones with a negative bias) and grows the transition
+matrix with them (`bjj.temporal.extend_transitions`).
+
 The labelling tool now also takes optional subtypes (De La Riva, knee shield, north-south, ...)
 as a letter after the digit, so future labelling already collects the finer classes.
 

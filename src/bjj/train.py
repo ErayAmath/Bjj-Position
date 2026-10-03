@@ -64,6 +64,28 @@ def train_step(model: nn.Module, batch_x: torch.Tensor, batch_y: torch.Tensor,
     return loss.item()
 
 
+def extend_output_layer(model: PositionMLP, total_classes: int) -> PositionMLP:
+    """Give a trained network outputs for classes it has never seen, keeping what it learned.
+
+    Own footage can contain positions the dataset does not have (a leg entanglement, say). The
+    last layer is replaced by a wider one: trained rows are copied, new ones start with a small
+    weight and a strongly negative bias, so the model begins by *not* predicting them and has to
+    be convinced by the new labels.
+    """
+    last = model.net[-1]
+    if last.out_features >= total_classes:
+        return model
+    known = last.out_features
+    wider = nn.Linear(last.in_features, total_classes)
+    with torch.no_grad():
+        wider.weight[:known] = last.weight
+        wider.bias[:known] = last.bias
+        wider.weight[known:] *= 0.01
+        wider.bias[known:] = -4.0
+    model.net[-1] = wider
+    return model
+
+
 @dataclass
 class TrainConfig:
     epochs: int = 30

@@ -59,6 +59,27 @@ def rescale_transitions(transitions: np.ndarray, frame_ratio: float) -> np.ndarr
     return powered / powered.sum(axis=1, keepdims=True)
 
 
+def extend_transitions(transitions: np.ndarray, extra: int, leak: float = 0.01) -> np.ndarray:
+    """Grow a transition matrix by `extra` classes that the dataset does not contain.
+
+    Own labels can introduce positions the ViCoS dataset never had (a leg entanglement, say).
+    The model's output layer grows, so the transition matrix has to grow with it. The new
+    classes get the average persistence of the known ones, and every known class gets a small
+    probability `leak` of moving into them — enough to be reachable, not enough to be guessed.
+    """
+    if extra <= 0:
+        return transitions
+    size = len(transitions)
+    out = np.zeros((size + extra, size + extra))
+    out[:size, :size] = transitions * (1 - leak)
+    out[:size, size:] = leak / extra
+    stay = float(np.mean(np.diag(transitions)))
+    for i in range(size, size + extra):
+        out[i] = (1 - stay) / (size + extra - 1)
+        out[i, i] = stay
+    return out / out.sum(axis=1, keepdims=True)
+
+
 def viterbi(probabilities: np.ndarray, transitions: np.ndarray, epsilon: float = 1e-12) -> np.ndarray:
     """Most likely label sequence given per-frame class probabilities.
 
